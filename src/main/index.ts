@@ -1,6 +1,8 @@
-import { app, BrowserWindow, dialog, ipcMain, protocol, screen } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, screen } from 'electron'
 import { createReadStream, promises as fs } from 'fs'
-import { Readable } from 'stream'
+import { createServer } from 'http'
+import type { AddressInfo } from 'net'
+import { randomBytes } from 'crypto'
 import { join, extname } from 'path'
 
 const VIDEO_EXTS = new Set(['.mp4', '.m4v', '.webm', '.ogg', '.ogv', '.mov'])
@@ -14,39 +16,80 @@ const MIME: Record<string, string> = {
   '.ogv': 'video/ogg'
 }
 
-protocol.registerSchemesAsPrivileged([
-  { scheme: 'media', privileges: { stream: true, bypassCSP: true, supportFetchAPI: true } }
-])
+// --- loopback media server ---
+// Videos are served over 127.0.0.1 HTTP rather than a custom protocol:
+// Chromium's media stack only treats http(s) resources as range-seekable, and
+// files with a trailing moov atom need a seek to the file tail before they can
+// even be demuxed (custom-scheme responses get aborted — electron#38749).
+// Only explicitly registered files are served, via unguessable tokens.
 
-// --- media:// protocol: serves local video files with Range support (required for seeking) ---
+const tokenToPath = new Map<string, string>()
+const pathToToken = new Map<string, string>()
+let mediaPort = 0
 
-async function serveMedia(req: Request): Promise<Response> {
-  const filePath = decodeURIComponent(new URL(req.url).pathname.replace(/^\//, ''))
-  let stat
+function tokenFor(filePath: string): string {
+  let token = pathToToken.get(filePath)
+  if (!token) {
+    token = randomBytes(12).toString('hex')
+    pathToToken.set(filePath, token)
+    tokenToPath.set(token, filePath)
+  }
+  return token
+}
+
+const mediaServer = createServer(async (req, res) => {
   try {
-    stat = await fs.stat(filePath)
+    const token = decodeURIComponent((req.url ?? '').replace(/^\//, ''))
+    const filePath = tokenToPath.get(token)
+    if (!filePath) {
+      res.writeHead(404)
+      res.end()
+      return
+    }
+    const total = (await fs.stat(filePath)).size
+    const type = MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream'
+    const range = req.headers.range
+    if (range) {
+      const m = /bytes=(\d*)-(\d*)/.exec(range)
+      let start = m && m[1] ? parseInt(m[1], 10) : NaN
+      let end = m && m[2] ? parseInt(m[2], 10) : NaN
+      if (Number.isNaN(start)) {
+        // suffix range: last N bytes
+        start = Math.max(0, total - end)
+        end = total - 1
+      } else if (Number.isNaN(end)) {
+        end = total - 1
+      }
+      end = Math.min(end, total - 1)
+      if (start >= total || start > end) {
+        res.writeHead(416, { 'Content-Range': `bytes */${total}` })
+        res.end()
+        return
+      }
+      res.writeHead(206, {
+        'Content-Type': type,
+        'Accept-Ranges': 'bytes',
+        'Content-Range': `bytes ${start}-${end}/${total}`,
+        'Content-Length': end - start + 1
+      })
+      createReadStream(filePath, { start, end }).pipe(res)
+    } else {
+      res.writeHead(200, {
+        'Content-Type': type,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': total
+      })
+      createReadStream(filePath).pipe(res)
+    }
   } catch {
-    return new Response('Not found', { status: 404 })
+    res.writeHead(500)
+    res.end()
   }
-  const total = stat.size
-  const headers: Record<string, string> = {
-    'Content-Type': MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream',
-    'Accept-Ranges': 'bytes'
-  }
-  const range = req.headers.get('range')
-  if (range) {
-    const m = /bytes=(\d*)-(\d*)/.exec(range)
-    const start = m && m[1] ? parseInt(m[1], 10) : 0
-    let end = m && m[2] ? parseInt(m[2], 10) : total - 1
-    if (Number.isNaN(start) || start >= total) return new Response(null, { status: 416 })
-    end = Math.min(end, total - 1)
-    headers['Content-Range'] = `bytes ${start}-${end}/${total}`
-    headers['Content-Length'] = String(end - start + 1)
-    const stream = Readable.toWeb(createReadStream(filePath, { start, end })) as ReadableStream
-    return new Response(stream, { status: 206, headers })
-  }
-  headers['Content-Length'] = String(total)
-  return new Response(Readable.toWeb(createReadStream(filePath)) as ReadableStream, { status: 200, headers })
+})
+
+async function startMediaServer(): Promise<void> {
+  await new Promise<void>((resolve) => mediaServer.listen(0, '127.0.0.1', resolve))
+  mediaPort = (mediaServer.address() as AddressInfo).port
 }
 
 // --- window state persistence ---
@@ -133,9 +176,14 @@ async function createWindow(): Promise<void> {
 
   ipcMain.handle('expand-paths', (_e, paths: string[]) => expandPaths(paths))
 
+  ipcMain.handle('media-urls', (_e, paths: string[]) =>
+    paths.map((p) => `http://127.0.0.1:${mediaPort}/${tokenFor(p)}`)
+  )
+
   // Dev/test helpers: MM_AUTOLOAD=<dir-or-files;...> loads videos on startup,
-  // MM_AUTOPLAY=1 starts playback 1.5s later, and MM_SHOT=<delayMs>:<pngPath>[;...]
-  // captures screenshots for automated verification.
+  // MM_AUTOPLAY=1 starts playback 1.5s later, MM_SHOT=<delayMs>:<pngPath>[;...]
+  // captures screenshots, and MM_REPORT=<delayMs>:<jsonPath> dumps per-tile
+  // decoder state for automated verification.
   win.webContents.on('did-finish-load', async () => {
     if (process.env.MM_AUTOLOAD) {
       const paths = await expandPaths(process.env.MM_AUTOLOAD.split(';'))
@@ -143,6 +191,30 @@ async function createWindow(): Promise<void> {
       if (process.env.MM_AUTOPLAY) {
         setTimeout(() => win.webContents.executeJavaScript('window.mm.timeline.play()'), 1500)
       }
+    }
+    if (process.env.MM_EVAL) {
+      const [delay, ...rest] = process.env.MM_EVAL.split(':')
+      setTimeout(() => win.webContents.executeJavaScript(rest.join(':')), parseInt(delay, 10))
+    }
+    if (process.env.MM_REPORT) {
+      const [delay, ...rest] = process.env.MM_REPORT.split(':')
+      const outPath = rest.join(':')
+      setTimeout(async () => {
+        const report = await win.webContents.executeJavaScript(
+          `JSON.stringify(window.mm.tiles.map(t => ({
+             name: t.name,
+             error: t.video.error ? { code: t.video.error.code, message: t.video.error.message } : null,
+             readyState: t.video.readyState,
+             videoWidth: t.video.videoWidth,
+             videoHeight: t.video.videoHeight,
+             duration: t.video.duration,
+             currentTime: t.video.currentTime,
+             videoDecodedBytes: t.video.webkitVideoDecodedByteCount ?? null,
+             audioDecodedBytes: t.video.webkitAudioDecodedByteCount ?? null
+           })), null, 2)`
+        )
+        await fs.writeFile(outPath, report)
+      }, parseInt(delay, 10))
     }
     for (const spec of (process.env.MM_SHOT ?? '').split(';').filter(Boolean)) {
       const [delay, ...rest] = spec.split(':')
@@ -161,8 +233,8 @@ async function createWindow(): Promise<void> {
   }
 }
 
-app.whenReady().then(() => {
-  protocol.handle('media', serveMedia)
+app.whenReady().then(async () => {
+  await startMediaServer()
   createWindow()
 })
 

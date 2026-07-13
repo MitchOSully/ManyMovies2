@@ -134,6 +134,33 @@ body {
   display: flex;
 }
 
+.error-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 8, 8, 0.9);
+}
+
+.error-overlay span {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #d47a7a;
+  font-family: Consolas, monospace;
+}
+
+.error-overlay small {
+  font-size: 11px;
+  color: #8a6a6a;
+}
+
+.tile.load-error .error-overlay {
+  display: flex;
+}
+
 #empty {
   position: absolute;
   inset: 0;

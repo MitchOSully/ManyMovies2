@@ -49,7 +49,23 @@ export class VideoTile {
     const overlayText = document.createElement('span')
     overlayText.textContent = '[FINISHED]'
     overlay.append(overlayText)
-    frame.append(this.video, overlay)
+
+    const errorOverlay = document.createElement('div')
+    errorOverlay.className = 'error-overlay'
+    const errorTitle = document.createElement('span')
+    errorTitle.textContent = "[CAN'T PLAY]"
+    const errorDetail = document.createElement('small')
+    errorOverlay.append(errorTitle, errorDetail)
+    this.video.addEventListener('error', () => {
+      const code = this.video.error?.code
+      errorDetail.textContent =
+        { 1: 'loading aborted', 2: 'network error', 3: 'decoding failed', 4: 'format or source not supported' }[
+          code ?? 0
+        ] ?? 'unknown error'
+      this.el.classList.add('load-error')
+    })
+
+    frame.append(this.video, overlay, errorOverlay)
     frame.addEventListener('click', (e) => {
       this.onClickVideo?.(this, e.ctrlKey || e.metaKey)
     })

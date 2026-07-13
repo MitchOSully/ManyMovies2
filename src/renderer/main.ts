@@ -72,13 +72,10 @@ function basename(p: string): string {
   return p.split(/[\\/]/).pop() ?? p
 }
 
-function addPaths(paths: string[]): void {
-  addSources(
-    paths.map((p) => ({
-      url: 'media:///' + encodeURIComponent(p.replace(/\\/g, '/')),
-      name: basename(p)
-    }))
-  )
+async function addPaths(paths: string[]): Promise<void> {
+  if (!paths.length) return
+  const urls = await window.api!.mediaUrls(paths)
+  addSources(paths.map((p, i) => ({ url: urls[i], name: basename(p) })))
 }
 
 function addBrowserFiles(files: File[]): void {
