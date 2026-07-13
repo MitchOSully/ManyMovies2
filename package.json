@@ -1,0 +1,33 @@
+{
+  "name": "manymovies",
+  "version": "1.0.0",
+  "description": "Play many videos simultaneously in a synced grid",
+  "main": "./out/main/index.js",
+  "author": "Mitchell",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build && electron-builder --win portable",
+    "start": "electron-vite preview"
+  },
+  "build": {
+    "appId": "com.mitchell.manymovies",
+    "productName": "ManyMovies",
+    "files": [
+      "out/**"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "portable"
+    }
+  },
+  "devDependencies": {
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6"
+  }
+}

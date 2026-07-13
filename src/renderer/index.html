@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ManyMovies</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="stage">
+        <div id="tiles"></div>
+        <div id="empty">
+          <div class="empty-title">ManyMovies</div>
+          <div>Drop video files here, or click ＋ Add videos</div>
+        </div>
+      </div>
+      <div id="controls">
+        <button id="btn-add" title="Add videos">＋ Add videos</button>
+        <span class="sep"></span>
+        <button id="btn-play" title="Play/Pause (Space)">▶</button>
+        <button id="btn-back" title="Back 10s (←)">⏪ 10</button>
+        <button id="btn-fwd" title="Forward 10s (→)">10 ⏩</button>
+        <select id="rate" title="Playback speed (↑/↓)">
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+        </select>
+        <span class="sep"></span>
+        <button id="btn-mute" title="Mute all (M)">🔊</button>
+        <button id="btn-all" title="All videos audible (A)">All sound</button>
+        <input id="slider" type="range" min="0" max="0" step="0.01" value="0" />
+        <span id="time">0:00 / 0:00</span>
+      </div>
+      <input id="file-input" type="file" accept="video/*" multiple hidden />
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
