@@ -3,11 +3,20 @@ import type { VideoTile } from './player'
 const EPS = 0.08
 const DRIFT_TOLERANCE = 0.35
 const DRIFT_CHECK_MS = 1000
+// HAVE_FUTURE_DATA: a tile below this is buffering and can't be trusted as a
+// clock, nor helped by being seeked (a seek just aborts its recovery).
+const HEALTHY_READY_STATE = 3
+// A tile whose position is further than this from the group is re-joining
+// after a stall; it must be drift-snapped forward before it can be trusted
+// as the reference clock again (otherwise it would drag the wall backward).
+const CLOCK_TRUST_WINDOW = 1.0
 
 /**
  * Global timeline: all videos aligned at t=0, spanning 0 -> longest duration.
- * The longest video is the master clock; other tiles are drift-corrected
- * against it about once a second while playing.
+ * The reference clock is the longest video that is actually advancing —
+ * healthy (not buffering) and near the last known global time. Other tiles
+ * are drift-corrected against it about once a second while playing; a
+ * stalled tile freezes alone and gets snapped forward once it recovers.
  */
 export class Timeline {
   private tiles: VideoTile[] = []
@@ -22,15 +31,20 @@ export class Timeline {
     return d
   }
 
-  private master(): VideoTile | null {
-    let m: VideoTile | null = null
-    for (const t of this.tiles) if (t.duration > 0 && (!m || t.duration > m.duration)) m = t
-    return m
+  private reference(): VideoTile | null {
+    let best: VideoTile | null = null
+    for (const t of this.tiles) {
+      if (t.duration === 0 || t.finished) continue
+      if (t.video.readyState < HEALTHY_READY_STATE) continue
+      if (Math.abs(t.video.currentTime - this.lastTime) > CLOCK_TRUST_WINDOW) continue
+      if (!best || t.duration > best.duration) best = t
+    }
+    return best
   }
 
   get currentTime(): number {
-    const m = this.master()
-    return m ? m.video.currentTime : 0
+    const ref = this.reference()
+    return ref ? ref.video.currentTime : this.lastTime
   }
 
   atEnd(): boolean {
@@ -135,10 +149,15 @@ export class Timeline {
 
     if (now - this.lastDriftCheck > DRIFT_CHECK_MS) {
       this.lastDriftCheck = now
-      const m = this.master()
+      const ref = this.reference()
       for (const tile of this.tiles) {
-        if (tile === m || tile.finished || tile.duration === 0) continue
-        if (Math.abs(tile.video.currentTime - t) > DRIFT_TOLERANCE) tile.video.currentTime = t
+        if (tile === ref || tile.finished || tile.duration === 0) continue
+        if (
+          tile.video.readyState >= HEALTHY_READY_STATE &&
+          Math.abs(tile.video.currentTime - t) > DRIFT_TOLERANCE
+        ) {
+          tile.video.currentTime = t
+        }
         if (tile.video.paused) void tile.video.play().catch(() => {})
       }
     }

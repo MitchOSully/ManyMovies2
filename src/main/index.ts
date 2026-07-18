@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, screen } from 'electron'
 import { createReadStream, promises as fs } from 'fs'
+import { pipeline } from 'stream'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
 import { randomBytes } from 'crypto'
@@ -16,36 +17,55 @@ const MIME: Record<string, string> = {
   '.ogv': 'video/ogg'
 }
 
-// --- loopback media server ---
+// --- loopback media servers ---
 // Videos are served over 127.0.0.1 HTTP rather than a custom protocol:
 // Chromium's media stack only treats http(s) resources as range-seekable, and
 // files with a trailing moov atom need a seek to the file tail before they can
 // even be demuxed (custom-scheme responses get aborted — electron#38749).
-// Only explicitly registered files are served, via unguessable tokens.
+// Each file gets its OWN server on a dedicated port: Chromium caps HTTP/1.1 at
+// 6 concurrent connections per origin, so a single shared port starves every
+// video past the sixth (black tiles on load, mid-playback freezes). A port per
+// file gives each video a private connection pool. Only explicitly registered
+// files are served, via unguessable tokens.
 
-const tokenToPath = new Map<string, string>()
-const pathToToken = new Map<string, string>()
-let mediaPort = 0
-
-function tokenFor(filePath: string): string {
-  let token = pathToToken.get(filePath)
-  if (!token) {
-    token = randomBytes(12).toString('hex')
-    pathToToken.set(filePath, token)
-    tokenToPath.set(token, filePath)
-  }
-  return token
+interface MediaEntry {
+  port: number
+  token: string
 }
 
-const mediaServer = createServer(async (req, res) => {
-  try {
-    const token = decodeURIComponent((req.url ?? '').replace(/^\//, ''))
-    const filePath = tokenToPath.get(token)
-    if (!filePath) {
+const mediaEntries = new Map<string, MediaEntry>()
+
+async function entryFor(filePath: string): Promise<MediaEntry> {
+  const existing = mediaEntries.get(filePath)
+  if (existing) return existing
+  const token = randomBytes(12).toString('hex')
+  const server = createServer((req, res) => {
+    if (decodeURIComponent((req.url ?? '').replace(/^\//, '')) !== token) {
       res.writeHead(404)
       res.end()
       return
     }
+    serveFile(filePath, req, res).catch(() => {
+      try {
+        res.writeHead(500)
+        res.end()
+      } catch {
+        // headers already sent
+      }
+    })
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const entry = { port: (server.address() as AddressInfo).port, token }
+  mediaEntries.set(filePath, entry)
+  return entry
+}
+
+async function serveFile(
+  filePath: string,
+  req: import('http').IncomingMessage,
+  res: import('http').ServerResponse
+): Promise<void> {
+  try {
     const total = (await fs.stat(filePath)).size
     const type = MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream'
     const range = req.headers.range
@@ -72,24 +92,22 @@ const mediaServer = createServer(async (req, res) => {
         'Content-Range': `bytes ${start}-${end}/${total}`,
         'Content-Length': end - start + 1
       })
-      createReadStream(filePath, { start, end }).pipe(res)
+      // pipeline (unlike .pipe) destroys both streams on error or client
+      // abort — media elements abort range requests constantly, and leaked
+      // read streams eventually wedge the server mid-response.
+      pipeline(createReadStream(filePath, { start, end }), res, () => {})
     } else {
       res.writeHead(200, {
         'Content-Type': type,
         'Accept-Ranges': 'bytes',
         'Content-Length': total
       })
-      createReadStream(filePath).pipe(res)
+      pipeline(createReadStream(filePath), res, () => {})
     }
   } catch {
     res.writeHead(500)
     res.end()
   }
-})
-
-async function startMediaServer(): Promise<void> {
-  await new Promise<void>((resolve) => mediaServer.listen(0, '127.0.0.1', resolve))
-  mediaPort = (mediaServer.address() as AddressInfo).port
 }
 
 // --- window state persistence ---
@@ -177,7 +195,12 @@ async function createWindow(): Promise<void> {
   ipcMain.handle('expand-paths', (_e, paths: string[]) => expandPaths(paths))
 
   ipcMain.handle('media-urls', (_e, paths: string[]) =>
-    paths.map((p) => `http://127.0.0.1:${mediaPort}/${tokenFor(p)}`)
+    Promise.all(
+      paths.map(async (p) => {
+        const { port, token } = await entryFor(p)
+        return `http://127.0.0.1:${port}/${token}`
+      })
+    )
   )
 
   // Dev/test helpers: MM_AUTOLOAD=<dir-or-files;...> loads videos on startup,
@@ -201,17 +224,20 @@ async function createWindow(): Promise<void> {
       const outPath = rest.join(':')
       setTimeout(async () => {
         const report = await win.webContents.executeJavaScript(
-          `JSON.stringify(window.mm.tiles.map(t => ({
+          `JSON.stringify({ extra: window.__mmExtra ?? null, tiles: window.mm.tiles.map(t => ({
              name: t.name,
              error: t.video.error ? { code: t.video.error.code, message: t.video.error.message } : null,
              readyState: t.video.readyState,
+             networkState: t.video.networkState,
+             buffered: Array.from({ length: t.video.buffered.length }, (_, i) =>
+               [t.video.buffered.start(i), t.video.buffered.end(i)].map(x => Math.round(x * 10) / 10)),
              videoWidth: t.video.videoWidth,
              videoHeight: t.video.videoHeight,
              duration: t.video.duration,
              currentTime: t.video.currentTime,
              videoDecodedBytes: t.video.webkitVideoDecodedByteCount ?? null,
              audioDecodedBytes: t.video.webkitAudioDecodedByteCount ?? null
-           })), null, 2)`
+           })) }, null, 2)`
         )
         await fs.writeFile(outPath, report)
       }, parseInt(delay, 10))
@@ -233,8 +259,7 @@ async function createWindow(): Promise<void> {
   }
 }
 
-app.whenReady().then(async () => {
-  await startMediaServer()
+app.whenReady().then(() => {
   createWindow()
 })
 
