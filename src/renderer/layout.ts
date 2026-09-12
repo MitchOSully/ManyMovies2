@@ -1,5 +1,5 @@
 export const STRIP_HEIGHT = 26
-export const TILE_GAP = 8
+export const TILE_GAP = 4
 
 export interface Layout {
   tileW: number

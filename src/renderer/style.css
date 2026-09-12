@@ -42,7 +42,7 @@ body {
 #tiles {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
   justify-content: center;
 }
 
@@ -50,7 +50,6 @@ body {
   width: var(--tile-w, 320px);
   height: var(--tile-h, 206px);
   background: #000;
-  border-radius: 6px;
   overflow: hidden;
   position: relative;
 }
