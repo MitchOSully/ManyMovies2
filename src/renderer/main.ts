@@ -209,6 +209,8 @@ function step(now: number): void {
   }
   timeEl.textContent = `${fmt(timeline.currentTime)} / ${fmt(dur)}`
   btnPlay.textContent = timeline.playing ? '⏸' : '▶'
+  btnAll.classList.toggle('active', audio.isAllSound && !audio.muted)
+  btnAll.classList.toggle('active-dim', audio.isAllSound && audio.muted)
 }
 
 function frame(now: number): void {

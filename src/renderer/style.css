@@ -218,6 +218,11 @@ body {
   color: var(--accent);
 }
 
+#controls button.active-dim {
+  border-color: var(--accent-dim);
+  color: var(--accent-dim);
+}
+
 #slider {
   flex: 1;
   min-width: 120px;

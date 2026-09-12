@@ -54,12 +54,22 @@ export class AudioController {
     return this.audible.has(tile)
   }
 
+  /** True when every tile is audible — the default, borderless state. */
+  get isAllSound(): boolean {
+    return this.tiles.length > 0 && this.audible.size === this.tiles.length
+  }
+
   private apply(): void {
+    // All-sound is judged by the actual set, not how it was reached: a full
+    // set hand-assembled via Ctrl+clicks re-enables all-mode, so later
+    // additions join the audible set and no borders show.
+    const all = this.isAllSound
+    if (all) this.allMode = true
     for (const tile of this.tiles) {
       const audible = this.audible.has(tile)
       tile.video.muted = !audible || this.muted
       tile.video.volume = 1
-      tile.el.classList.toggle('audible', audible)
+      tile.el.classList.toggle('audible', audible && !all)
       tile.el.classList.toggle('muted-global', this.muted)
     }
   }
