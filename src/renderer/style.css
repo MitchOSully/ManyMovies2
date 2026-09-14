@@ -113,6 +113,62 @@ body {
   pointer-events: none;
 }
 
+/* Titles hidden: video fills the tile, and a floating ✕ stands in for the
+   remove button that normally lives in the strip. */
+.no-strips .strip {
+  display: none;
+}
+
+.no-strips .frame {
+  top: 0;
+}
+
+.frame-title {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: none;
+  z-index: 1;
+  padding: 6px 36px 6px 8px;
+  background: linear-gradient(rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0));
+  color: #e8e8ea;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.no-strips .frame:hover .frame-title {
+  display: block;
+}
+
+.frame-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: none;
+  z-index: 2;
+  padding: 4px 7px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #c9c9d1;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.no-strips .frame:hover .frame-close {
+  display: block;
+}
+
+.frame-close:hover {
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+}
+
 .finished-overlay {
   position: absolute;
   inset: 0;

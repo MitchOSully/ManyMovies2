@@ -9,22 +9,27 @@ export interface Layout {
 
 /**
  * Uniform grid: pick the rows*cols arrangement that maximizes tile area for a
- * 16:9 video region (plus the title strip) within the given container.
+ * 16:9 video region (plus the title strip, when shown) within the container.
  */
-export function computeLayout(n: number, w: number, h: number): Layout {
-  let best: Layout & { area: number } = { area: -1, tileW: 320, tileH: 180 + STRIP_HEIGHT, cols: 1 }
+export function computeLayout(
+  n: number,
+  w: number,
+  h: number,
+  stripHeight: number = STRIP_HEIGHT
+): Layout {
+  let best: Layout & { area: number } = { area: -1, tileW: 320, tileH: 180 + stripHeight, cols: 1 }
   for (let rows = 1; rows <= n; rows++) {
     const cols = Math.ceil(n / rows)
     const cellW = (w - TILE_GAP * (cols + 1)) / cols
     const cellH = (h - TILE_GAP * (rows + 1)) / rows
-    const videoH = cellH - STRIP_HEIGHT
+    const videoH = cellH - stripHeight
     if (cellW <= 0 || videoH <= 0) continue
     const scale = Math.min(cellW / 16, videoH / 9)
     const vw = 16 * scale
     const vh = 9 * scale
     const area = vw * vh
     if (area > best.area) {
-      best = { area, tileW: Math.floor(vw), tileH: Math.floor(vh + STRIP_HEIGHT), cols }
+      best = { area, tileW: Math.floor(vw), tileH: Math.floor(vh + stripHeight), cols }
     }
   }
   return best

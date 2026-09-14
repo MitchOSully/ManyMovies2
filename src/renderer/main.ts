@@ -1,7 +1,7 @@
 import { VideoTile, type VideoSource } from './player'
 import { Timeline } from './timeline'
 import { AudioController } from './audio'
-import { computeLayout, TILE_GAP } from './layout'
+import { computeLayout, TILE_GAP, STRIP_HEIGHT } from './layout'
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T
 
@@ -15,6 +15,7 @@ const btnFwd = $<HTMLButtonElement>('btn-fwd')
 const rateSel = $<HTMLSelectElement>('rate')
 const btnMute = $<HTMLButtonElement>('btn-mute')
 const btnAll = $<HTMLButtonElement>('btn-all')
+const btnTitles = $<HTMLButtonElement>('btn-titles')
 const slider = $<HTMLInputElement>('slider')
 const timeEl = $<HTMLSpanElement>('time')
 const fileInput = $<HTMLInputElement>('file-input')
@@ -23,6 +24,8 @@ const RATES = [0.5, 1, 2]
 const tiles: VideoTile[] = []
 const timeline = new Timeline()
 const audio = new AudioController()
+/** Title strips above each video; hiding them gives the grid their height back. */
+let titlesVisible = false
 
 // --- tile management ---
 
@@ -54,7 +57,7 @@ function removeTile(tile: VideoTile): void {
 function relayout(): void {
   if (tiles.length === 0) return
   const rect = stage.getBoundingClientRect()
-  const l = computeLayout(tiles.length, rect.width, rect.height)
+  const l = computeLayout(tiles.length, rect.width, rect.height, titlesVisible ? STRIP_HEIGHT : 0)
   tilesEl.style.setProperty('--tile-w', `${l.tileW}px`)
   tilesEl.style.setProperty('--tile-h', `${l.tileH}px`)
   tilesEl.style.width = `${l.cols * l.tileW + (l.cols - 1) * TILE_GAP + 1}px`
@@ -140,6 +143,15 @@ btnMute.addEventListener('click', () => {
   btnMute.classList.toggle('active', audio.muted)
 })
 
+function toggleTitles(): void {
+  titlesVisible = !titlesVisible
+  tilesEl.classList.toggle('no-strips', !titlesVisible)
+  btnTitles.classList.toggle('active', titlesVisible)
+  relayout()
+}
+
+btnTitles.addEventListener('click', toggleTitles)
+
 // --- slider scrubbing (pause during drag, resume on release) ---
 
 let scrubbing = false
@@ -184,6 +196,10 @@ window.addEventListener('keydown', (e) => {
     case 'A':
       audio.allSound()
       return
+    case 't':
+    case 'T':
+      toggleTitles()
+      return
     default:
       return
   }
@@ -225,4 +241,4 @@ setInterval(() => step(performance.now()), 250)
 updateEmpty()
 
 // Debug/testing hook
-;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, timeline, audio, tiles }
+;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, timeline, audio, tiles, toggleTitles }

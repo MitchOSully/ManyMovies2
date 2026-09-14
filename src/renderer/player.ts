@@ -65,7 +65,22 @@ export class VideoTile {
       this.el.classList.add('load-error')
     })
 
-    frame.append(this.video, overlay, errorOverlay)
+    // Duplicate remove control for when the title strip (and its ✕) is hidden;
+    // CSS reveals it on hover in that mode only.
+    const frameClose = document.createElement('button')
+    frameClose.className = 'frame-close'
+    frameClose.textContent = '✕'
+    frameClose.title = 'Remove video'
+    frameClose.addEventListener('click', (e) => {
+      e.stopPropagation()
+      this.onClose?.(this)
+    })
+    // Hover-revealed filename bar, standing in for the hidden strip.
+    const frameTitle = document.createElement('div')
+    frameTitle.className = 'frame-title'
+    frameTitle.textContent = source.name
+
+    frame.append(this.video, overlay, errorOverlay, frameTitle, frameClose)
     frame.addEventListener('click', (e) => {
       this.onClickVideo?.(this, e.ctrlKey || e.metaKey)
     })
