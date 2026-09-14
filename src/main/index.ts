@@ -213,6 +213,16 @@ async function createWindow(): Promise<void> {
     }
   })
 
+  // --- full screen ---
+  // F11 is already bound to the default menu's Toggle Full Screen accelerator,
+  // so the renderer must NOT toggle on F11 as well (it would cancel itself out).
+  // It only listens for the resulting state and hides its own toolbar to match.
+  win.on('enter-full-screen', () => win.webContents.send('full-screen', true))
+  win.on('leave-full-screen', () => win.webContents.send('full-screen', false))
+
+  ipcMain.handle('set-full-screen', (_e, on: boolean) => win.setFullScreen(on))
+  ipcMain.handle('toggle-full-screen', () => win.setFullScreen(!win.isFullScreen()))
+
   ipcMain.handle('open-files', async () => {
     const result = await dialog.showOpenDialog(win, {
       properties: ['openFile', 'multiSelections'],

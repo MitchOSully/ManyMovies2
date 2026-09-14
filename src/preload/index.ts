@@ -7,5 +7,10 @@ contextBridge.exposeInMainWorld('api', {
   pathForFile: (file: File): string => webUtils.getPathForFile(file),
   onAutoload: (cb: (paths: string[]) => void): void => {
     ipcRenderer.on('autoload', (_e, paths: string[]) => cb(paths))
+  },
+  setFullScreen: (on: boolean): Promise<void> => ipcRenderer.invoke('set-full-screen', on),
+  toggleFullScreen: (): Promise<void> => ipcRenderer.invoke('toggle-full-screen'),
+  onFullScreen: (cb: (on: boolean) => void): void => {
+    ipcRenderer.on('full-screen', (_e, on: boolean) => cb(on))
   }
 })

@@ -16,6 +16,7 @@ const rateSel = $<HTMLSelectElement>('rate')
 const btnMute = $<HTMLButtonElement>('btn-mute')
 const btnAll = $<HTMLButtonElement>('btn-all')
 const btnTitles = $<HTMLButtonElement>('btn-titles')
+const btnFull = $<HTMLButtonElement>('btn-full')
 const slider = $<HTMLInputElement>('slider')
 const timeEl = $<HTMLSpanElement>('time')
 const fileInput = $<HTMLInputElement>('file-input')
@@ -152,6 +153,47 @@ function toggleTitles(): void {
 
 btnTitles.addEventListener('click', toggleTitles)
 
+// --- full screen ---
+// Native full screen (Electron) drops the window frame and covers the taskbar;
+// the .fullscreen class takes care of our own toolbar. F11 is NOT bound here in
+// the Electron path: the default menu's Toggle Full Screen accelerator already
+// owns that key, and toggling on both would cancel itself out.
+
+/** Distance from the bottom edge that re-reveals the toolbar in full screen. */
+const REVEAL_ZONE = 72
+let fullscreen = false
+
+function applyFullScreen(on: boolean): void {
+  fullscreen = on
+  document.body.classList.toggle('fullscreen', on)
+  if (!on) document.body.classList.remove('show-controls')
+  btnFull.classList.toggle('active', on)
+  btnFull.title = on ? 'Exit full screen (F11 / Esc)' : 'Full screen (F11)'
+}
+
+function toggleFullScreen(): void {
+  if (window.api) window.api.toggleFullScreen()
+  else if (document.fullscreenElement) document.exitFullscreen()
+  else document.documentElement.requestFullscreen()
+}
+
+function exitFullScreen(): void {
+  if (window.api) window.api.setFullScreen(false)
+  else if (document.fullscreenElement) document.exitFullscreen()
+}
+
+btnFull.addEventListener('click', toggleFullScreen)
+window.api?.onFullScreen(applyFullScreen)
+// Browser fallback: no main process to report the state back.
+document.addEventListener('fullscreenchange', () => {
+  if (!window.api) applyFullScreen(!!document.fullscreenElement)
+})
+
+window.addEventListener('mousemove', (e) => {
+  if (!fullscreen || scrubbing) return
+  document.body.classList.toggle('show-controls', e.clientY >= window.innerHeight - REVEAL_ZONE)
+})
+
 // --- slider scrubbing (pause during drag, resume on release) ---
 
 let scrubbing = false
@@ -200,6 +242,15 @@ window.addEventListener('keydown', (e) => {
     case 'T':
       toggleTitles()
       return
+    case 'F11':
+      // Electron's menu accelerator already owns F11; only the browser path needs us.
+      if (window.api) return
+      toggleFullScreen()
+      break
+    case 'Escape':
+      if (!fullscreen) return
+      exitFullScreen()
+      break
     default:
       return
   }
@@ -241,4 +292,4 @@ setInterval(() => step(performance.now()), 250)
 updateEmpty()
 
 // Debug/testing hook
-;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, timeline, audio, tiles, toggleTitles }
+;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, timeline, audio, tiles, toggleTitles, toggleFullScreen }

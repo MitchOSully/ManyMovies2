@@ -28,6 +28,7 @@ body {
 #app {
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 #stage {
@@ -290,4 +291,23 @@ body {
   color: #a0a0aa;
   min-width: 110px;
   text-align: right;
+}
+
+/* Full screen: the toolbar leaves the flow (the grid reclaims its height) and
+   slides off the bottom edge, so only video is left. It slides back in as an
+   overlay when the pointer nears the bottom of the screen, which keeps the
+   slider reachable without leaving full screen. */
+body.fullscreen #controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  background: rgba(26, 26, 32, 0.94);
+  transform: translateY(100%);
+  transition: transform 0.18s ease;
+}
+
+body.fullscreen.show-controls #controls {
+  transform: translateY(0);
 }
