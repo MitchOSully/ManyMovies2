@@ -291,7 +291,10 @@ function step(now: number): void {
     timeProbe.textContent = `${durStamp} / ${durStamp}`
     timeEl.style.setProperty('--time-w', `${timeProbe.getBoundingClientRect().width}px`)
   }
-  btnPlay.classList.toggle('playing', timeline.playing)
+  // A drag pauses the timeline underneath, but that is plumbing, not a transport
+  // change: keep showing the state the release will restore so the button only
+  // ever flips when play/pause is actually used.
+  btnPlay.classList.toggle('playing', scrubbing ? wasPlaying : timeline.playing)
   btnAll.classList.toggle('active', audio.isAllSound && !audio.muted)
   btnAll.classList.toggle('active-dim', audio.isAllSound && audio.muted)
 }
