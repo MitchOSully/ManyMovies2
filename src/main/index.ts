@@ -4,7 +4,7 @@ import { pipeline } from 'stream'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
 import { randomBytes } from 'crypto'
-import { join, extname } from 'path'
+import { join, extname, dirname } from 'path'
 
 const VIDEO_EXTS = new Set(['.mp4', '.m4v', '.webm', '.ogg', '.ogv', '.mov'])
 
@@ -143,6 +143,34 @@ async function loadWindowState(): Promise<WindowState> {
   }
 }
 
+// --- settings persistence ---
+
+interface Settings {
+  /** Folder of the last file picked via the Add-videos dialog; seeds the next dialog. */
+  lastFolder?: string
+}
+
+const settingsFile = () => join(app.getPath('userData'), 'settings.json')
+
+let settings: Settings = {}
+
+async function loadSettings(): Promise<Settings> {
+  try {
+    const raw = (await fs.readFile(settingsFile(), 'utf8')).replace(/^\uFEFF/, '')
+    const s = JSON.parse(raw) as Settings
+    return typeof s.lastFolder === 'string' ? { lastFolder: s.lastFolder } : {}
+  } catch {
+    // absent on first run, or unreadable/corrupt — start fresh
+    return {}
+  }
+}
+
+function saveSettings(): void {
+  fs.writeFile(settingsFile(), JSON.stringify(settings)).catch(() => {
+    // best effort
+  })
+}
+
 async function expandPaths(paths: string[]): Promise<string[]> {
   const out: string[] = []
   for (const p of paths) {
@@ -164,6 +192,7 @@ async function expandPaths(paths: string[]): Promise<string[]> {
 
 async function createWindow(): Promise<void> {
   const state = await loadWindowState()
+  settings = await loadSettings()
   const win = new BrowserWindow({
     ...state,
     minWidth: 480,
@@ -187,9 +216,13 @@ async function createWindow(): Promise<void> {
   ipcMain.handle('open-files', async () => {
     const result = await dialog.showOpenDialog(win, {
       properties: ['openFile', 'multiSelections'],
-      filters: [{ name: 'Videos', extensions: ['mp4', 'm4v', 'webm', 'ogg', 'ogv', 'mov'] }]
+      filters: [{ name: 'Videos', extensions: ['mp4', 'm4v', 'webm', 'ogg', 'ogv', 'mov'] }],
+      ...(settings.lastFolder ? { defaultPath: settings.lastFolder } : {})
     })
-    return result.canceled ? [] : result.filePaths
+    if (result.canceled || !result.filePaths.length) return []
+    settings.lastFolder = dirname(result.filePaths[0])
+    saveSettings()
+    return result.filePaths
   })
 
   ipcMain.handle('expand-paths', (_e, paths: string[]) => expandPaths(paths))
