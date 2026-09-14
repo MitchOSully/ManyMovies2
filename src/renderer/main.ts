@@ -27,6 +27,13 @@ const timeline = new Timeline()
 const audio = new AudioController()
 /** Title strips above each video; hiding them gives the grid their height back. */
 let titlesVisible = false
+/** Stamp length the time readout's width reserve was last measured for. */
+let timeReserve = 0
+/** Hidden twin of the readout (see #time-probe in the CSS) used to measure it. */
+const timeProbe = document.createElement('span')
+timeProbe.id = 'time-probe'
+timeProbe.setAttribute('aria-hidden', 'true')
+timeEl.after(timeProbe)
 
 // --- tile management ---
 
@@ -274,7 +281,16 @@ function step(now: number): void {
     slider.max = String(dur)
     slider.value = String(timeline.currentTime)
   }
-  timeEl.textContent = `${fmt(timeline.currentTime)} / ${fmt(dur)}`
+  const durStamp = fmt(dur)
+  timeEl.textContent = `${fmt(timeline.currentTime)} / ${durStamp}`
+  // Elapsed never prints wider than the duration, so a stamp pair built from the
+  // duration is the widest the readout can get; measure that once per format
+  // change and reserve exactly it.
+  if (durStamp.length !== timeReserve) {
+    timeReserve = durStamp.length
+    timeProbe.textContent = `${durStamp} / ${durStamp}`
+    timeEl.style.setProperty('--time-w', `${timeProbe.getBoundingClientRect().width}px`)
+  }
   btnPlay.classList.toggle('playing', timeline.playing)
   btnAll.classList.toggle('active', audio.isAllSound && !audio.muted)
   btnAll.classList.toggle('active-dim', audio.isAllSound && audio.muted)

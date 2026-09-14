@@ -306,12 +306,28 @@ body {
   accent-color: var(--accent);
 }
 
-#time {
+#time,
+#time-probe {
   font-variant-numeric: tabular-nums;
   font-size: 12px;
   color: #a0a0aa;
-  min-width: 110px;
+}
+
+#time {
+  /* Width is reserved for the longest stamp the current duration can print
+     (measured off #time-probe and set as --time-w from main.ts) so the ticking
+     clock never nudges the slider, while a short duration does not leave a gap
+     sized for hours that never come. */
+  min-width: var(--time-w, 0);
   text-align: right;
+}
+
+/* Off-layout twin of the readout, styled identically, used only to measure. */
+#time-probe {
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;
+  pointer-events: none;
 }
 
 /* Full screen: the toolbar leaves the flow (the grid reclaims its height) and
