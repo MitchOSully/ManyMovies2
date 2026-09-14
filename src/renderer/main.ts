@@ -275,7 +275,7 @@ function step(now: number): void {
     slider.value = String(timeline.currentTime)
   }
   timeEl.textContent = `${fmt(timeline.currentTime)} / ${fmt(dur)}`
-  btnPlay.textContent = timeline.playing ? '⏸' : '▶'
+  btnPlay.classList.toggle('playing', timeline.playing)
   btnAll.classList.toggle('active', audio.isAllSound && !audio.muted)
   btnAll.classList.toggle('active-dim', audio.isAllSound && audio.muted)
 }

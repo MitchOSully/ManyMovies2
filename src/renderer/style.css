@@ -265,6 +265,27 @@ body {
   font-size: 13px;
 }
 
+/* Both glyphs are always laid out, stacked in one grid cell, so the button
+   keeps the width of the wider one and the toolbar does not shift when play
+   flips to pause. */
+#controls #btn-play {
+  display: inline-grid;
+  justify-items: center;
+}
+
+#btn-play > span {
+  grid-area: 1 / 1;
+}
+
+#btn-play > span:nth-child(2),
+#btn-play.playing > span:nth-child(1) {
+  visibility: hidden;
+}
+
+#btn-play.playing > span:nth-child(2) {
+  visibility: visible;
+}
+
 #controls button:hover {
   background: #30303a;
 }
