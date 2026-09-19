@@ -19,9 +19,12 @@ const btnTitles = $<HTMLButtonElement>('btn-titles')
 const btnFull = $<HTMLButtonElement>('btn-full')
 const slider = $<HTMLInputElement>('slider')
 const timeEl = $<HTMLSpanElement>('time')
+const countEl = $<HTMLSpanElement>('count')
 const fileInput = $<HTMLInputElement>('file-input')
 
 const RATES = [0.5, 1, 2]
+/** Duration of the collapse animation; must match the .flip transition in the CSS. */
+const EXIT_MS = 180
 const tiles: VideoTile[] = []
 const timeline = new Timeline()
 const audio = new AudioController()
@@ -29,6 +32,8 @@ const audio = new AudioController()
 let titlesVisible = false
 /** Stamp length the time readout's width reserve was last measured for. */
 let timeReserve = 0
+/** Tile total the count readout's width reserve was last measured for. */
+let countReserve = -1
 /** Hidden twin of the readout (see #time-probe in the CSS) used to measure it. */
 const timeProbe = document.createElement('span')
 timeProbe.id = 'time-probe'
@@ -42,6 +47,19 @@ function addSources(sources: VideoSource[]): void {
     const tile = new VideoTile(s)
     tile.onClickVideo = (t, ctrl) => (ctrl ? audio.toggleInSet(t) : audio.solo(t))
     tile.onClose = removeTile
+    // Never relayout straight from here: tick() can finish several tiles in one
+    // pass, so the work is coalesced into a single pass in step().
+    tile.onFinishedChange = () => {
+      layoutDirty = true
+    }
+    // Duration feeds the collapse rule too, and it arrives (or never does) after
+    // the tile is built — adding a video once everything has finished has to
+    // re-collapse the rest, and no finished state flips to say so.
+    for (const ev of ['loadedmetadata', 'error']) {
+      tile.video.addEventListener(ev, () => {
+        layoutDirty = true
+      })
+    }
     tiles.push(tile)
     tilesEl.append(tile.el)
     timeline.addTile(tile)
@@ -55,6 +73,7 @@ function removeTile(tile: VideoTile): void {
   const i = tiles.indexOf(tile)
   if (i < 0) return
   tiles.splice(i, 1)
+  endExit(tile, false)
   timeline.removeTile(tile)
   audio.removeTile(tile)
   tile.dispose()
@@ -62,20 +81,142 @@ function removeTile(tile: VideoTile): void {
   updateEmpty()
 }
 
-function relayout(): void {
-  if (tiles.length === 0) return
+// --- collapsing finished videos out of the grid ---
+
+/** Set when any tile's finished state flips; consumed once per frame by step(). */
+let layoutDirty = false
+/** Tiles currently shrinking away, with the rect they left from and their teardown timer. */
+const exiting = new Map<VideoTile, { rect: DOMRect; timer: number }>()
+/** Tiles occupying a cell right now — what the toolbar readout counts. */
+let visibleCount = 0
+
+/** True while a tile is laid out in the grid (neither collapsed nor mid-exit). */
+function inFlow(tile: VideoTile): boolean {
+  return !tile.el.classList.contains('collapsed') && !tile.el.classList.contains('exiting')
+}
+
+/**
+ * Finished videos leave the grid so the rest can grow — except at the end of the
+ * timeline, where every tile comes back so playback ends on a wall of final
+ * frames rather than a black stage. "Still running" ignores tiles that can't
+ * decode (duration 0, never finish), so one unplayable file can't suppress that.
+ */
+function collapsing(): boolean {
+  return tiles.some((t) => !t.finished && t.duration > 0)
+}
+
+function endExit(tile: VideoTile, collapsed: boolean): void {
+  const ex = exiting.get(tile)
+  if (!ex) return
+  clearTimeout(ex.timer)
+  exiting.delete(tile)
+  tile.el.classList.remove('exiting', 'flip')
+  const s = tile.el.style
+  s.left = s.top = s.width = s.height = s.transform = s.opacity = ''
+  tile.el.classList.toggle('collapsed', collapsed)
+}
+
+/** #tiles is centred, so its box shifts whenever the column count changes. */
+function pinExit(tile: VideoTile, rect: DOMRect, origin: DOMRect): void {
+  const s = tile.el.style
+  s.left = `${rect.left - origin.left}px`
+  s.top = `${rect.top - origin.top}px`
+  s.width = `${rect.width}px`
+  s.height = `${rect.height}px`
+}
+
+/**
+ * Size the grid to the tiles currently on screen, optionally animating the
+ * survivors into their new cells (FLIP) while the departing tiles shrink away.
+ */
+function relayout(animate = false): void {
+  if (tiles.length === 0) {
+    visibleCount = 0
+    return
+  }
+
+  const collapse = collapsing()
+  const hide = (t: VideoTile): boolean => collapse && t.finished
+  // Reveals snap. They only happen while scrubbing or at the end of the
+  // timeline, and animating one would fight the stream of seeks behind it.
+  if (tiles.some((t) => !inFlow(t) && !hide(t))) animate = false
+
+  // getBoundingClientRect reports the *transformed* box, so a tile caught
+  // mid-flight re-targets from where it visually is instead of snapping back.
+  const first = new Map<VideoTile, DOMRect>()
+  if (animate) for (const t of tiles) if (inFlow(t)) first.set(t, t.el.getBoundingClientRect())
+  // Clearing transforms is also the safety valve for un-animated relayouts (a
+  // window resize mid-flight): nothing is left stranded. Tiles already on their
+  // way out keep theirs and finish their own shrink.
+  for (const t of tiles) {
+    if (exiting.has(t)) continue
+    t.el.classList.remove('flip')
+    t.el.style.transform = ''
+  }
+
+  const leaving: VideoTile[] = []
+  for (const t of tiles) {
+    if (!hide(t)) {
+      endExit(t, false)
+      t.el.classList.remove('collapsed')
+    } else if (!exiting.has(t)) {
+      // .exiting leaves the flow immediately, so the measurement below sees the
+      // grid the survivors are actually moving into.
+      if (animate && first.has(t)) {
+        leaving.push(t)
+        t.el.classList.add('exiting')
+      } else {
+        t.el.classList.add('collapsed')
+      }
+    }
+  }
+
+  const visible = tiles.filter(inFlow)
+  visibleCount = visible.length
   const rect = stage.getBoundingClientRect()
-  const l = computeLayout(tiles.length, rect.width, rect.height, titlesVisible ? STRIP_HEIGHT : 0)
+  const l = computeLayout(visibleCount, rect.width, rect.height, titlesVisible ? STRIP_HEIGHT : 0)
   tilesEl.style.setProperty('--tile-w', `${l.tileW}px`)
   tilesEl.style.setProperty('--tile-h', `${l.tileH}px`)
   tilesEl.style.width = `${l.cols * l.tileW + (l.cols - 1) * TILE_GAP + 1}px`
+
+  const origin = tilesEl.getBoundingClientRect()
+  for (const [t, ex] of exiting) pinExit(t, ex.rect, origin)
+  if (!animate) return
+
+  for (const t of leaving) {
+    const r = first.get(t)!
+    exiting.set(t, { rect: r, timer: window.setTimeout(() => endExit(t, true), EXIT_MS) })
+    // Explicit size: --tile-w/h have already grown for the smaller grid.
+    pinExit(t, r, origin)
+  }
+
+  // Invert: put every survivor back where it just was...
+  for (const t of visible) {
+    const a = first.get(t)
+    if (!a) continue
+    const b = t.el.getBoundingClientRect()
+    if (!b.width || !b.height) continue
+    const [dx, dy] = [a.left - b.left, a.top - b.top]
+    t.el.style.transform = `translate(${dx}px, ${dy}px) scale(${a.width / b.width}, ${a.height / b.height})`
+  }
+  void tilesEl.offsetWidth // ...flush that frame, then release it.
+  for (const t of visible) {
+    if (!first.has(t)) continue
+    t.el.classList.add('flip')
+    t.el.style.transform = ''
+  }
+  for (const t of leaving) {
+    t.el.classList.add('flip')
+    t.el.style.transform = 'scale(0)'
+    t.el.style.opacity = '0'
+  }
 }
 
 function updateEmpty(): void {
   emptyEl.style.display = tiles.length ? 'none' : 'flex'
 }
 
-new ResizeObserver(relayout).observe(stage)
+new ResizeObserver(() => relayout()).observe(stage)
 
 // --- ingestion ---
 
@@ -276,6 +417,14 @@ function fmt(s: number): string {
 
 function step(now: number): void {
   timeline.tick(now)
+  // One pass for however many tiles just finished, and the single point every
+  // finished-state change funnels through — seek() from the slider, the arrow
+  // keys and the ±10s buttons all land here on the next frame. Minimized, the
+  // 250 ms interval still runs us but transitions may not advance, so snap.
+  if (layoutDirty) {
+    layoutDirty = false
+    relayout(!scrubbing && !document.hidden)
+  }
   const dur = timeline.duration
   if (!scrubbing) {
     slider.max = String(dur)
@@ -290,6 +439,13 @@ function step(now: number): void {
     timeReserve = durStamp.length
     timeProbe.textContent = `${durStamp} / ${durStamp}`
     timeEl.style.setProperty('--time-w', `${timeProbe.getBoundingClientRect().width}px`)
+  }
+  // Same reserve, same probe: the widest this can print is the total on both sides.
+  countEl.textContent = tiles.length ? `▦ ${visibleCount}/${tiles.length}` : ''
+  if (tiles.length !== countReserve) {
+    countReserve = tiles.length
+    timeProbe.textContent = `▦ ${tiles.length}/${tiles.length}`
+    countEl.style.setProperty('--count-w', `${timeProbe.getBoundingClientRect().width}px`)
   }
   // A drag pauses the timeline underneath, but that is plumbing, not a transport
   // change: keep showing the state the release will restore so the button only

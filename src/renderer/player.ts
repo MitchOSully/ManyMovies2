@@ -14,6 +14,8 @@ export class VideoTile {
 
   onClickVideo: ((tile: VideoTile, ctrl: boolean) => void) | null = null
   onClose: ((tile: VideoTile) => void) | null = null
+  /** Fired only when `finished` actually flips; the grid collapses around it. */
+  onFinishedChange: ((tile: VideoTile) => void) | null = null
 
   constructor(source: VideoSource) {
     this.name = source.name
@@ -44,12 +46,6 @@ export class VideoTile {
     this.video.src = source.url
     this.video.preload = 'auto'
     this.video.disablePictureInPicture = true
-    const overlay = document.createElement('div')
-    overlay.className = 'finished-overlay'
-    const overlayText = document.createElement('span')
-    overlayText.textContent = '[FINISHED]'
-    overlay.append(overlayText)
-
     const errorOverlay = document.createElement('div')
     errorOverlay.className = 'error-overlay'
     const errorTitle = document.createElement('span')
@@ -80,7 +76,7 @@ export class VideoTile {
     frameTitle.className = 'frame-title'
     frameTitle.textContent = source.name
 
-    frame.append(this.video, overlay, errorOverlay, frameTitle, frameClose)
+    frame.append(this.video, errorOverlay, frameTitle, frameClose)
     frame.addEventListener('click', (e) => {
       this.onClickVideo?.(this, e.ctrlKey || e.metaKey)
     })
@@ -99,6 +95,7 @@ export class VideoTile {
     this.finished = finished
     this.el.classList.toggle('finished', finished)
     if (finished) this.video.pause()
+    this.onFinishedChange?.(this)
   }
 
   dispose(): void {

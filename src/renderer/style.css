@@ -45,6 +45,8 @@ body {
   flex-wrap: wrap;
   gap: 4px;
   justify-content: center;
+  /* Anchors tiles that are mid-exit, which are absolutely positioned. */
+  position: relative;
 }
 
 .tile {
@@ -53,6 +55,30 @@ body {
   background: #000;
   overflow: hidden;
   position: relative;
+  /* FLIP inverts are computed from top-left corners. */
+  transform-origin: 0 0;
+}
+
+/* A finished video gives its space back to the grid (see relayout in main.ts).
+   Kept as a separate class from .finished because the end of the timeline
+   reveals every finished tile again. */
+.tile.collapsed {
+  display: none;
+}
+
+/* Mid-exit: out of the flow the instant it finishes, so the survivors can start
+   growing into its cell, but still painted on top of them while it shrinks. */
+.tile.exiting {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  transform-origin: center;
+}
+
+.tile.flip {
+  transition:
+    transform 180ms ease-out,
+    opacity 180ms ease-out;
 }
 
 .tile.audible {
@@ -168,26 +194,6 @@ body {
 .frame-close:hover {
   background: rgba(0, 0, 0, 0.85);
   color: #fff;
-}
-
-.finished-overlay {
-  position: absolute;
-  inset: 0;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.82);
-}
-
-.finished-overlay span {
-  font-size: 12px;
-  letter-spacing: 2px;
-  color: #9a9aa4;
-  font-family: Consolas, monospace;
-}
-
-.tile.finished .finished-overlay {
-  display: flex;
 }
 
 .error-overlay {
@@ -307,10 +313,22 @@ body {
 }
 
 #time,
-#time-probe {
+#time-probe,
+#count {
   font-variant-numeric: tabular-nums;
   font-size: 12px;
   color: #a0a0aa;
+}
+
+#count {
+  /* Same reserve trick as #time, measured off the same probe: this sits at the
+     head of the toolbar, so a digit changing would shove every control right
+     of it. */
+  min-width: var(--count-w, 0);
+}
+
+#count:empty {
+  display: none;
 }
 
 #time {
