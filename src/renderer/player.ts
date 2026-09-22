@@ -61,6 +61,30 @@ export class VideoTile {
       this.el.classList.add('load-error')
     })
 
+    // Chromium silently drops audio tracks it can't decode (AC-3, E-AC-3, DTS…)
+    // and plays the video alone, so a file with no audio track and one with an
+    // unplayable track look the same. Judge by the decoder counter once the
+    // tile has actually played a moment; muted tiles still decode audio.
+    const noAudioBadge = document.createElement('div')
+    noAudioBadge.className = 'no-audio-badge'
+    noAudioBadge.textContent = 'NO AUDIO'
+    noAudioBadge.title = 'No playable audio track (Chromium cannot decode AC-3, E-AC-3 or DTS audio)'
+    const checkAudio = (): void => {
+      const decoded = (this.video as HTMLVideoElement & { webkitAudioDecodedByteCount?: number })
+        .webkitAudioDecodedByteCount
+      if (decoded === undefined || decoded > 0) {
+        this.video.removeEventListener('timeupdate', checkAudio)
+        return
+      }
+      const played = this.video.played
+      let seconds = 0
+      for (let i = 0; i < played.length; i++) seconds += played.end(i) - played.start(i)
+      if (seconds < 1.5) return
+      this.el.classList.add('no-audio')
+      this.video.removeEventListener('timeupdate', checkAudio)
+    }
+    this.video.addEventListener('timeupdate', checkAudio)
+
     // Duplicate remove control for when the title strip (and its ✕) is hidden;
     // CSS reveals it on hover in that mode only.
     const frameClose = document.createElement('button')
@@ -76,7 +100,7 @@ export class VideoTile {
     frameTitle.className = 'frame-title'
     frameTitle.textContent = source.name
 
-    frame.append(this.video, errorOverlay, frameTitle, frameClose)
+    frame.append(this.video, noAudioBadge, errorOverlay, frameTitle, frameClose)
     frame.addEventListener('click', (e) => {
       this.onClickVideo?.(this, e.ctrlKey || e.metaKey)
     })
