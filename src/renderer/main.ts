@@ -233,7 +233,7 @@ async function addPaths(paths: string[]): Promise<void> {
 function addBrowserFiles(files: File[]): void {
   addSources(
     files
-      .filter((f) => f.type.startsWith('video/') || /\.(mp4|m4v|webm|ogg|ogv|mov)$/i.test(f.name))
+      .filter((f) => f.type.startsWith('video/') || /\.(mp4|m4v|webm|ogg|ogv|mov|mkv)$/i.test(f.name))
       .map((f) => ({ url: URL.createObjectURL(f), name: f.name, revoke: true }))
   )
 }

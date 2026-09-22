@@ -6,13 +6,14 @@ import type { AddressInfo } from 'net'
 import { randomBytes } from 'crypto'
 import { join, extname, dirname } from 'path'
 
-const VIDEO_EXTS = new Set(['.mp4', '.m4v', '.webm', '.ogg', '.ogv', '.mov'])
+const VIDEO_EXTS = new Set(['.mp4', '.m4v', '.webm', '.ogg', '.ogv', '.mov', '.mkv'])
 
 const MIME: Record<string, string> = {
   '.mp4': 'video/mp4',
   '.m4v': 'video/mp4',
   '.mov': 'video/quicktime',
   '.webm': 'video/webm',
+  '.mkv': 'video/x-matroska',
   '.ogg': 'video/ogg',
   '.ogv': 'video/ogg'
 }
@@ -226,7 +227,7 @@ async function createWindow(): Promise<void> {
   ipcMain.handle('open-files', async () => {
     const result = await dialog.showOpenDialog(win, {
       properties: ['openFile', 'multiSelections'],
-      filters: [{ name: 'Videos', extensions: ['mp4', 'm4v', 'webm', 'ogg', 'ogv', 'mov'] }],
+      filters: [{ name: 'Videos', extensions: ['mp4', 'm4v', 'webm', 'ogg', 'ogv', 'mov', 'mkv'] }],
       ...(settings.lastFolder ? { defaultPath: settings.lastFolder } : {})
     })
     if (result.canceled || !result.filePaths.length) return []
