@@ -334,22 +334,10 @@ body {
 }
 
 #time,
-#time-probe,
-#count {
+#time-probe {
   font-variant-numeric: tabular-nums;
   font-size: 12px;
   color: #a0a0aa;
-}
-
-#count {
-  /* Same reserve trick as #time, measured off the same probe: this sits at the
-     head of the toolbar, so a digit changing would shove every control right
-     of it. */
-  min-width: var(--count-w, 0);
-}
-
-#count:empty {
-  display: none;
 }
 
 #time {

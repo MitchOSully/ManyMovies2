@@ -19,7 +19,6 @@ const btnTitles = $<HTMLButtonElement>('btn-titles')
 const btnFull = $<HTMLButtonElement>('btn-full')
 const slider = $<HTMLInputElement>('slider')
 const timeEl = $<HTMLSpanElement>('time')
-const countEl = $<HTMLSpanElement>('count')
 const fileInput = $<HTMLInputElement>('file-input')
 
 const RATES = [0.5, 1, 2]
@@ -32,8 +31,6 @@ const audio = new AudioController()
 let titlesVisible = false
 /** Stamp length the time readout's width reserve was last measured for. */
 let timeReserve = 0
-/** Tile total the count readout's width reserve was last measured for. */
-let countReserve = -1
 /** Hidden twin of the readout (see #time-probe in the CSS) used to measure it. */
 const timeProbe = document.createElement('span')
 timeProbe.id = 'time-probe'
@@ -87,9 +84,6 @@ function removeTile(tile: VideoTile): void {
 let layoutDirty = false
 /** Tiles currently shrinking away, with the rect they left from and their teardown timer. */
 const exiting = new Map<VideoTile, { rect: DOMRect; timer: number }>()
-/** Tiles occupying a cell right now — what the toolbar readout counts. */
-let visibleCount = 0
-
 /** True while a tile is laid out in the grid (neither collapsed nor mid-exit). */
 function inFlow(tile: VideoTile): boolean {
   return !tile.el.classList.contains('collapsed') && !tile.el.classList.contains('exiting')
@@ -130,10 +124,7 @@ function pinExit(tile: VideoTile, rect: DOMRect, origin: DOMRect): void {
  * survivors into their new cells (FLIP) while the departing tiles shrink away.
  */
 function relayout(animate = false): void {
-  if (tiles.length === 0) {
-    visibleCount = 0
-    return
-  }
+  if (tiles.length === 0) return
 
   const collapse = collapsing()
   const hide = (t: VideoTile): boolean => collapse && t.finished
@@ -172,9 +163,8 @@ function relayout(animate = false): void {
   }
 
   const visible = tiles.filter(inFlow)
-  visibleCount = visible.length
   const rect = stage.getBoundingClientRect()
-  const l = computeLayout(visibleCount, rect.width, rect.height, titlesVisible ? STRIP_HEIGHT : 0)
+  const l = computeLayout(visible.length, rect.width, rect.height, titlesVisible ? STRIP_HEIGHT : 0)
   tilesEl.style.setProperty('--tile-w', `${l.tileW}px`)
   tilesEl.style.setProperty('--tile-h', `${l.tileH}px`)
   tilesEl.style.width = `${l.cols * l.tileW + (l.cols - 1) * TILE_GAP + 1}px`
@@ -439,13 +429,6 @@ function step(now: number): void {
     timeReserve = durStamp.length
     timeProbe.textContent = `${durStamp} / ${durStamp}`
     timeEl.style.setProperty('--time-w', `${timeProbe.getBoundingClientRect().width}px`)
-  }
-  // Same reserve, same probe: the widest this can print is the total on both sides.
-  countEl.textContent = tiles.length ? `▦ ${visibleCount}/${tiles.length}` : ''
-  if (tiles.length !== countReserve) {
-    countReserve = tiles.length
-    timeProbe.textContent = `▦ ${tiles.length}/${tiles.length}`
-    countEl.style.setProperty('--count-w', `${timeProbe.getBoundingClientRect().width}px`)
   }
   // A drag pauses the timeline underneath, but that is plumbing, not a transport
   // change: keep showing the state the release will restore so the button only
