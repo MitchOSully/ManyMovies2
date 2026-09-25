@@ -28,6 +28,7 @@ Desktop app that plays many videos simultaneously in a synced grid.
 npm install
 npm run dev      # dev server + Electron window
 npm run build    # portable .exe in release/
+npm test         # full regression suite (needs ffmpeg on PATH)
 ```
 
 Supported formats: MP4 (H.264/AAC), WebM, Ogg, and MOV/M4V where Chromium can decode them.

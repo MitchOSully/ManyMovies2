@@ -1,15 +1,17 @@
 # ManyMovies — agent orientation
 
-Electron desktop app (Windows-first) that plays **many videos at once in a synced grid**: one global timeline/slider, shared transport, click-to-solo audio. Vanilla TypeScript — **no framework, no bundler config beyond electron-vite defaults, no test suite, no linter**. ~1250 lines total; read the whole of any file you touch.
+Electron desktop app (Windows-first) that plays **many videos at once in a synced grid**: one global timeline/slider, shared transport, click-to-solo audio. Vanilla TypeScript — **no framework, no bundler config beyond electron-vite defaults, no linter**. Tests: Vitest (unit) + Playwright driving the real Electron app (E2E), see [tests/README.md](tests/README.md). ~1250 lines total; read the whole of any file you touch.
 
 ## Commands
 
 ```bash
 npm run dev      # electron-vite dev: Vite renderer on :5173 + Electron window
 npm run build    # → release/ManyMovies <version>.exe (electron-builder portable)
+npm test         # unit + E2E (builds, needs ffmpeg for fixtures), ~2 min
+npm run test:unit
 ```
 
-No test/lint/typecheck script exists. `npx tsc --noEmit` type-checks (`tsconfig.json` is `noEmit`, strict). `.claude/launch.json` defines a `dev` preview config (needs the explicit Node PATH prefix it contains).
+No lint/typecheck script exists. `npx tsc --noEmit` type-checks (`tsconfig.json` is `noEmit`, strict). `.claude/launch.json` defines a `dev` preview config (needs the explicit Node PATH prefix it contains).
 
 ## Map
 
@@ -40,7 +42,9 @@ No test/lint/typecheck script exists. `npx tsc --noEmit` type-checks (`tsconfig.
 
 ## Verifying changes
 
-No automated tests. Use the `MM_*` env hooks in `src/main/index.ts:206-252` with clips from `testdata/` (gitignored; `ABC Tests/` = short synthetic set, `Problem Tests/` = known-awkward files):
+**Run `npm test` after every change.** It must stay green with zero retries. Add or extend a spec in `tests/e2e/` for any new feature or fixed bug. Conventions, tolerances, the `test.fail()` rule for known bugs and the manual checklist are in [tests/README.md](tests/README.md). E2E tests launch the app with `MM_USER_DATA=<tmp>` so they never touch the real profile.
+
+For ad-hoc investigation beyond the suite, use the `MM_*` env hooks in `src/main/index.ts:206-252` with clips from `testdata/` (gitignored; `ABC Tests/` = short synthetic set, `Problem Tests/` = known-awkward files):
 
 - `MM_AUTOLOAD=<dir-or-file;...>` load on startup · `MM_AUTOPLAY=1` play after 1.5 s
 - `MM_SHOT=<delayMs>:<png>[;...]` screenshot · `MM_REPORT=<delayMs>:<json>` dump per-tile decoder state (readyState, buffered, decoded bytes) · `MM_EVAL=<delayMs>:<js>` run JS in the renderer

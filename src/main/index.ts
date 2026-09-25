@@ -303,6 +303,10 @@ async function createWindow(): Promise<void> {
   }
 }
 
+// Test helper: MM_USER_DATA=<dir> isolates window state and settings from the
+// real profile. Must run before 'ready'.
+if (process.env.MM_USER_DATA) app.setPath('userData', process.env.MM_USER_DATA)
+
 app.whenReady().then(() => {
   createWindow()
 })

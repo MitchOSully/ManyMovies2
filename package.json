@@ -8,7 +8,11 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build && electron-builder --win portable",
-    "start": "electron-vite preview"
+    "start": "electron-vite preview",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "vitest run",
+    "test:e2e": "electron-vite build && playwright test",
+    "test:fixtures": "node tests/fixtures/generate.mjs"
   },
   "build": {
     "appId": "com.mitchell.manymovies",
@@ -24,10 +28,12 @@
     }
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "electron": "^43.1.0",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "typescript": "^7.0.2",
-    "vite": "^7.3.6"
+    "vite": "^7.3.6",
+    "vitest": "^5.0.1"
   }
 }
