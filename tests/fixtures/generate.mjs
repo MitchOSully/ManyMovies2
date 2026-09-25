@@ -7,7 +7,7 @@
 
 import { spawnSync } from 'child_process'
 import { createHash } from 'crypto'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { dirname, join, resolve } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -56,6 +56,20 @@ const RECIPES = {
 // Nine 10 s clips: more simultaneous videos than Chromium's 6-per-origin HTTP/1.1 cap.
 for (let i = 1; i <= 9; i++) {
   RECIPES[`many/m${i}.mp4`] = [...av(10, { w: 320, h: 180, freq: 200 + i * 50 }), ...H264, ...AAC, '-movflags', '+faststart']
+}
+// Fourteen 60 s clips: well past Chromium's 10-request network budget.
+// Padded to a constant 4 Mbps (~30 MB) because Chromium caches any file under
+// 25 MB whole; bigger ones stream, holding their download open while they play.
+// One encode, copied: each copy is still its own server and URL.
+RECIPES['long/l1.mp4'] = [
+  ...av(60, { w: 320, h: 180 }),
+  ...H264,
+  '-b:v', '4M', '-minrate', '4M', '-maxrate', '4M', '-bufsize', '1M', '-x264-params', 'nal-hrd=cbr',
+  ...AAC,
+  '-movflags', '+faststart'
+]
+for (let i = 2; i <= 14; i++) {
+  RECIPES[`long/l${i}.mp4`] = (p) => copyFileSync(join(OUT, 'long/l1.mp4'), p)
 }
 
 function recipeHash() {

@@ -26,6 +26,7 @@ export const ROOT = resolve(__dirname, '../..')
 export const FIXTURES = join(ROOT, 'tests/fixtures/out')
 export const fx = (name: string): string => join(FIXTURES, name)
 export const MANY = Array.from({ length: 9 }, (_, i) => `many/m${i + 1}.mp4`)
+export const LONG = Array.from({ length: 14 }, (_, i) => `long/l${i + 1}.mp4`)
 
 export interface AppCtx {
   app: ElectronApplication

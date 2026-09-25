@@ -19,7 +19,7 @@ npm run test:fixtures -- --force      # regenerate the clips
 | `e2e/*.spec.ts` | Playwright driving the real built Electron app, one app instance per file |
 | `e2e/helpers.ts` | `useApp()` (launch/reset/failure dump), `load()`, state readers |
 | `e2e/tolerances.ts` | Every timing tolerance, in one place |
-| `fixtures/generate.mjs` | Synthetic clips: mixed durations, portrait, end-`moov`, no/AC-3 audio, webm/mkv/mov, a broken file, 9 clips for the >6-connection case |
+| `fixtures/generate.mjs` | Synthetic clips: mixed durations, portrait, end-`moov`, no/AC-3 audio, webm/mkv/mov, a broken file, 9 clips for the >6-connection case, 14 × 30 MB clips for the >10-request case |
 
 ## How the E2E tests work
 

@@ -28,6 +28,16 @@ const MIME: Record<string, string> = {
 // video past the sixth (black tiles on load, mid-playback freezes). A port per
 // file gives each video a private connection pool. Only explicitly registered
 // files are served, via unguessable tokens.
+//
+// Range responses are also capped at MAX_RESPONSE_BYTES. A media element asks
+// for `bytes=N-` (to end of file) and, once its buffer is full, just stops
+// reading, so an uncapped response stays in flight for as long as the video
+// plays. Chromium's network scheduler allows only 10 low-priority (media)
+// requests in flight per page across ALL origins, so with 11+ videos one of
+// them could wait 15-30 s for a slot to free up — a frozen tile after every
+// seek. Chromium carries on past a short 206 by itself (it re-requests from
+// where the body ended), so small responses keep slots turning over.
+const MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 
 interface MediaEntry {
   port: number
@@ -87,6 +97,7 @@ async function serveFile(
         res.end()
         return
       }
+      end = Math.min(end, start + MAX_RESPONSE_BYTES - 1)
       res.writeHead(206, {
         'Content-Type': type,
         'Accept-Ranges': 'bytes',

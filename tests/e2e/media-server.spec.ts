@@ -1,6 +1,6 @@
 import { statSync } from 'fs'
-import { SEEK, SETTLE_MS, SYNC_SPREAD } from './tolerances'
-import { MANY, decoderReport, expect, fx, load, syncSpread, test, tiles, time, useApp, waitTime } from './helpers'
+import { SEEK, SEEK_RECOVERY_MS, SETTLE_MS, SYNC_SPREAD } from './tolerances'
+import { LONG, MANY, decoderReport, expect, fx, load, syncSpread, test, tiles, time, useApp, waitTime } from './helpers'
 
 const ctx = useApp()
 
@@ -23,6 +23,40 @@ test('more than six videos all load, play and stay in sync (per-file ports)', as
   expect(await syncSpread(ctx.page)).toBeLessThan(SYNC_SPREAD)
   const report = (await decoderReport(ctx.page)) as { videoDecodedBytes: number }[]
   for (const r of report) expect(r.videoDecodedBytes).toBeGreaterThan(0)
+})
+
+test('more than ten long videos all resume promptly after a seek (per-page request budget)', async () => {
+  // Every playing video holds a download open; Chromium allows 10 per page.
+  // Uncapped responses left the 11th tile frozen for 15-30 s after a seek.
+  await load(ctx.page, LONG)
+  await ctx.page.keyboard.press('Space')
+  await waitTime(ctx.page, 2)
+  for (let i = 0; i < 3; i++) await ctx.page.keyboard.press('ArrowRight')
+  const target = await time(ctx.page)
+  expect(target).toBeGreaterThan(30)
+  await expect
+    .poll(
+      async () =>
+        (await tiles(ctx.page))
+          .filter((t) => t.readyState < 3 || t.paused || t.currentTime < target + 0.5)
+          .map((t) => t.name),
+      { timeout: SEEK_RECOVERY_MS, intervals: [100] }
+    )
+    .toEqual([])
+  await ctx.page.waitForTimeout(SETTLE_MS)
+  expect(await syncSpread(ctx.page)).toBeLessThan(SYNC_SPREAD)
+})
+
+test('open-ended ranges are answered in bounded chunks', async () => {
+  const path = fx(LONG[0])
+  const total = statSync(path).size
+  const cap = 2 * 1024 * 1024
+  expect(total).toBeGreaterThan(cap * 2)
+  const url = await urlFor(path)
+  const r = await fetch(url, { headers: { Range: 'bytes=1000-' } })
+  expect(r.status).toBe(206)
+  expect(r.headers.get('content-range')).toBe(`bytes 1000-${1000 + cap - 1}/${total}`)
+  expect((await r.arrayBuffer()).byteLength).toBe(cap)
 })
 
 test('a file with its moov atom at the end loads, seeks and plays', async () => {
