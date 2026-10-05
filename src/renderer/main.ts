@@ -11,6 +11,8 @@ const tilesEl = $<HTMLDivElement>('tiles')
 const emptyEl = $<HTMLDivElement>('empty')
 const btnAdd = $<HTMLButtonElement>('btn-add')
 const btnClear = $<HTMLButtonElement>('btn-clear')
+const btnMore = $<HTMLButtonElement>('btn-more')
+const extrasEl = $<HTMLDivElement>('extras')
 const btnPlay = $<HTMLButtonElement>('btn-play')
 const btnBack = $<HTMLButtonElement>('btn-back')
 const btnFwd = $<HTMLButtonElement>('btn-fwd')
@@ -297,11 +299,14 @@ btnBack.addEventListener('click', () => timeline.seekBy(-10))
 btnFwd.addEventListener('click', () => timeline.seekBy(10))
 rateSel.addEventListener('change', () => timeline.setRate(parseFloat(rateSel.value)))
 btnAll.addEventListener('click', () => audio.allSound())
-btnMute.addEventListener('click', () => {
+
+function toggleMute(): void {
   audio.toggleMute()
   btnMute.textContent = audio.muted ? '🔇' : '🔊'
   btnMute.classList.toggle('active', audio.muted)
-})
+}
+
+btnMute.addEventListener('click', toggleMute)
 
 function toggleTitles(): void {
   titlesVisible = !titlesVisible
@@ -311,6 +316,22 @@ function toggleTitles(): void {
 }
 
 btnTitles.addEventListener('click', toggleTitles)
+
+// --- secondary controls (collapsed behind #btn-more) ---
+// Always starts collapsed. While collapsed the group is inert, so Tab skips it;
+// every control in it still has its own shortcut.
+
+let extrasOpen = false
+
+function toggleExtras(): void {
+  extrasOpen = !extrasOpen
+  extrasEl.classList.toggle('open', extrasOpen)
+  extrasEl.inert = !extrasOpen
+  btnMore.setAttribute('aria-expanded', String(extrasOpen))
+  btnMore.textContent = extrasOpen ? '‹' : '›'
+}
+
+btnMore.addEventListener('click', toggleExtras)
 
 // --- full screen ---
 // Native full screen (Electron) drops the window frame and covers the taskbar;
@@ -393,7 +414,7 @@ function handleKey(e: KeyboardEvent): void {
       break
     case 'm':
     case 'M':
-      btnMute.click()
+      toggleMute()
       return
     case 'a':
     case 'A':
@@ -462,6 +483,13 @@ function step(now: number): void {
   btnPlay.classList.toggle('playing', scrubbing ? wasPlaying : timeline.playing)
   btnAll.classList.toggle('active', audio.isAllSound && !audio.muted)
   btnAll.classList.toggle('active-dim', audio.isAllSound && audio.muted)
+  // Collapsed, the group hides the mute and rate state, and nothing else on
+  // screen shows them (titles and a soloed subset are visible on the tiles).
+  const changed = [audio.muted && 'muted', timeline.rate !== 1 && `${timeline.rate}×`].filter(Boolean)
+  const hint = !extrasOpen && changed.length > 0
+  btnMore.classList.toggle('active-dim', hint)
+  const title = hint ? `More controls — ${changed.join(', ')}` : extrasOpen ? 'Fewer controls' : 'More controls'
+  if (btnMore.title !== title) btnMore.title = title
 }
 
 function frame(now: number): void {
@@ -476,4 +504,4 @@ setInterval(() => step(performance.now()), 250)
 updateEmpty()
 
 // Debug/testing hook
-;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, clearTiles, timeline, audio, tiles, toggleTitles, toggleFullScreen, floats }
+;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, clearTiles, timeline, audio, tiles, toggleTitles, toggleMute, toggleExtras, toggleFullScreen, floats }

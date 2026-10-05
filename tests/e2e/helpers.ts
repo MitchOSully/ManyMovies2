@@ -19,6 +19,8 @@ declare global {
       audio: AudioController
       tiles: VideoTile[]
       toggleTitles(): void
+      toggleMute(): void
+      toggleExtras(): void
       toggleFullScreen(): void
       floats: FloatController
     }
@@ -119,12 +121,21 @@ export async function resetApp(ctx: AppCtx): Promise<void> {
     for (const t of [...mm.tiles]) mm.removeTile(t)
     mm.timeline.setRate(1)
     ;(document.getElementById('rate') as HTMLSelectElement).value = '1'
-    if (mm.audio.muted) document.getElementById('btn-mute')!.click()
+    if (mm.audio.muted) mm.toggleMute()
     mm.audio.allSound()
     if (!document.getElementById('tiles')!.classList.contains('no-strips')) mm.toggleTitles()
+    if (document.getElementById('extras')!.classList.contains('open')) mm.toggleExtras()
     ;(document.activeElement as HTMLElement | null)?.blur()
   })
   await ctx.page.mouse.move(640, 300)
+}
+
+/** Expands the secondary-controls group (it starts collapsed and inert) so its controls can be clicked. */
+export async function openExtras(page: Page): Promise<void> {
+  const more = page.locator('#btn-more')
+  if ((await more.getAttribute('aria-expanded')) !== 'true') await more.click()
+  await more.blur()
+  await expect(page.locator('#extras')).not.toHaveAttribute('inert')
 }
 
 export const basename = (p: string): string => p.split(/[\\/]/).pop()!

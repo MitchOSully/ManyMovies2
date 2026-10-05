@@ -1,5 +1,5 @@
 import { CLOCK_RATE, DRIFT_RECOVERY_MS, SETTLE_MS, STEER_RECOVERY_MS, SYNC_SPREAD } from './tolerances'
-import { LONG, expect, load, syncSpread, test, tiles, time, useApp, waitTime } from './helpers'
+import { LONG, expect, load, openExtras, syncSpread, test, tiles, time, useApp, waitTime } from './helpers'
 
 const ctx = useApp()
 const CLIPS = ['d8.mp4', 'd12.mp4', 'clip6.webm', 'endmoov8.mp4']
@@ -7,6 +7,7 @@ const CLIPS = ['d8.mp4', 'd12.mp4', 'clip6.webm', 'endmoov8.mp4']
 for (const rate of [1, 2]) {
   test(`videos stay in sync and the timeline tracks the wall clock at ${rate}×`, async () => {
     await load(ctx.page, CLIPS)
+    await openExtras(ctx.page)
     await ctx.page.locator('#rate').selectOption(String(rate))
     await ctx.page.locator('#rate').blur()
     await ctx.page.keyboard.press('Space')
@@ -74,6 +75,7 @@ for (const [label, nudge] of [['behind', -0.3], ['ahead', 0.3]] as const) {
 
 test('pausing mid-steer restores every video to the user rate', async () => {
   await load(ctx.page, LONG.slice(0, 2))
+  await openExtras(ctx.page)
   await ctx.page.locator('#rate').selectOption('2')
   await ctx.page.locator('#rate').blur()
   await ctx.page.keyboard.press('Space')

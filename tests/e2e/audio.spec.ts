@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, has, load, test, tiles, useApp } from './helpers'
+import { expect, has, load, openExtras, test, tiles, useApp } from './helpers'
 
 const ctx = useApp()
 const CLIPS = ['d8.mp4', 'd12.mp4', 'clip6.webm']
@@ -79,6 +79,7 @@ test('a video added while a subset is soloed stays silent', async () => {
 test('All sound (button and A) restores everyone', async () => {
   await load(ctx.page, CLIPS)
   await frame(ctx.page, 0).click()
+  await openExtras(ctx.page)
   await ctx.page.locator('#btn-all').click()
   expect((await state(ctx.page)).audible).toHaveLength(3)
   await ctx.page.locator('#btn-all').blur()
@@ -92,6 +93,7 @@ test('All sound (button and A) restores everyone', async () => {
 
 test('mute (button and M) silences everything but preserves the set', async () => {
   await load(ctx.page, CLIPS)
+  await openExtras(ctx.page)
   const mute = ctx.page.locator('#btn-mute')
   await frame(ctx.page, 1).click()
   await mute.click()

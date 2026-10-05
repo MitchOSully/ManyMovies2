@@ -334,6 +334,34 @@ body.float {
   background: #2c2c36;
 }
 
+/* Secondary controls tucked behind #btn-more. Animating a grid track from 0fr
+   to 1fr slides the group open at its natural width without measuring it. The
+   inner gap is a left margin, so the collapsed group (0 wide) only costs the
+   toolbar one gap. */
+#extras {
+  display: grid;
+  grid-template-columns: 0fr;
+  margin-left: -8px;
+  transition: grid-template-columns 0.15s ease;
+}
+
+#extras.open {
+  grid-template-columns: 1fr;
+}
+
+.extras-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.extras-inner > :first-child {
+  margin-left: 8px;
+}
+
 #controls button,
 #controls select {
   background: #26262e;

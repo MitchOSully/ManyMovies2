@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { computeLayout, STRIP_HEIGHT } from '../../src/renderer/layout'
-import { MANY, expect, load, stageRect, test, tiles, useApp, type TileState } from './helpers'
+import { MANY, expect, load, openExtras, stageRect, test, tiles, useApp, type TileState } from './helpers'
 
 const ctx = useApp()
 
@@ -65,6 +65,7 @@ test('Titles (button and T) toggles the strips and relayouts for them', async ()
   await expect(tilesEl).toHaveClass(/no-strips/)
   await expect(strip).toBeHidden()
 
+  await openExtras(ctx.page)
   await ctx.page.locator('#btn-titles').click()
   await expect(tilesEl).not.toHaveClass(/no-strips/)
   await expect(ctx.page.locator('#btn-titles')).toHaveClass(/active/)

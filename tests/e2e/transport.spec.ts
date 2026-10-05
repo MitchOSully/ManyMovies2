@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { SEEK } from './tolerances'
-import { expect, load, playing, test, tiles, time, useApp, waitTime } from './helpers'
+import { expect, load, openExtras, playing, test, tiles, time, useApp, waitTime } from './helpers'
 
 const ctx = useApp()
 
@@ -51,6 +51,7 @@ test('Space with no videos does nothing', async () => {
 test('±10 s via buttons and arrow keys, clamped to the timeline', async () => {
   await load(ctx.page, ['d5.mp4', 'd12.mp4'])
   await ctx.page.evaluate(() => window.mm.timeline.seek(1))
+  await openExtras(ctx.page)
   await ctx.page.locator('#btn-fwd').click()
   await expectAt(ctx.page, 11)
   await ctx.page.locator('#btn-fwd').blur()
@@ -66,6 +67,7 @@ test('±10 s via buttons and arrow keys, clamped to the timeline', async () => {
 
 test('speed via the dropdown and ↑/↓, clamped at 0.5× and 2×, applied to every video', async () => {
   await load(ctx.page, ['d8.mp4', 'd12.mp4'])
+  await openExtras(ctx.page)
   const rate = ctx.page.locator('#rate')
   const rates = async (): Promise<number[]> => (await tiles(ctx.page)).map((t) => t.rate)
 
@@ -87,6 +89,7 @@ test('speed via the dropdown and ↑/↓, clamped at 0.5× and 2×, applied to e
 
 test('↑/↓ change speed exactly one step while the dropdown has focus', async () => {
   await load(ctx.page, ['d12.mp4'])
+  await openExtras(ctx.page)
   const rate = ctx.page.locator('#rate')
   await rate.selectOption('1') // leaves focus on the select, as a real pick does
   await rate.focus()
@@ -98,6 +101,7 @@ test('↑/↓ change speed exactly one step while the dropdown has focus', async
 
 test('videos added at a non-1× speed inherit it', async () => {
   await load(ctx.page, ['d8.mp4'])
+  await openExtras(ctx.page)
   await ctx.page.locator('#rate').selectOption('0.5')
   await load(ctx.page, ['d12.mp4'])
   expect((await tiles(ctx.page)).map((t) => t.rate)).toEqual([0.5, 0.5])
