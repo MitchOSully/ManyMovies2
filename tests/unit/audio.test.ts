@@ -124,4 +124,51 @@ describe('AudioController', () => {
     expect(audio.isAllSound).toBe(true)
     expect(bordered([a, b])).toEqual([])
   })
+
+  it('click from all sound solos the tile', () => {
+    audio.click(b)
+    expect(audibleNames(all)).toEqual(['b'])
+    expect(bordered(all)).toEqual(['b'])
+  })
+
+  it('clicking the only audible tile brings everyone back', () => {
+    audio.click(b)
+    audio.click(b)
+    expect(audibleNames(all)).toEqual(['a', 'b', 'c'])
+    expect(bordered(all)).toEqual([])
+    expect(audio.isAllSound).toBe(true)
+  })
+
+  it('clicking an audible tile in a subset turns just it off', () => {
+    audio.solo(a)
+    audio.toggleInSet(b)
+    audio.click(a)
+    expect(audibleNames(all)).toEqual(['b'])
+    expect(bordered(all)).toEqual(['b'])
+  })
+
+  it('clicking a silent tile in a subset solos it', () => {
+    audio.solo(a)
+    audio.toggleInSet(b)
+    audio.click(c)
+    expect(audibleNames(all)).toEqual(['c'])
+  })
+
+  it('ctrl-toggling out the only audible tile brings everyone back', () => {
+    audio.solo(b)
+    audio.toggleInSet(b)
+    expect(audibleNames(all)).toEqual(['a', 'b', 'c'])
+    expect(audio.isAllSound).toBe(true)
+  })
+
+  it('the click rules apply unchanged while muted, and stay silent', () => {
+    audio.solo(b)
+    audio.toggleMute()
+    audio.click(b)
+    expect(audio.isAllSound).toBe(true)
+    expect(audibleNames(all)).toEqual([])
+    expect(bordered(all)).toEqual([])
+    audio.toggleMute()
+    expect(audibleNames(all)).toEqual(['a', 'b', 'c'])
+  })
 })

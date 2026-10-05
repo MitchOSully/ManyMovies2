@@ -51,7 +51,7 @@ timeEl.after(timeProbe)
 function addSources(sources: VideoSource[]): void {
   for (const s of sources) {
     const tile = new VideoTile(s)
-    tile.onClickVideo = (t, ctrl) => (ctrl ? audio.toggleInSet(t) : audio.solo(t))
+    tile.onClickVideo = (t, ctrl) => (ctrl ? audio.toggleInSet(t) : audio.click(t))
     tile.onClose = removeTile
     tile.onFloat = (t) => floats.float(t)
     // Never relayout straight from here: tick() can finish several tiles in one

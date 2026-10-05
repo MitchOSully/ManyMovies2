@@ -29,6 +29,25 @@ test('clicking a video solos it', async () => {
   expect(await state(ctx.page)).toEqual({ audible: ['clip6.webm'], bordered: ['clip6.webm'] })
 })
 
+test('clicking an audible video turns it back off; the last one brings everyone back', async () => {
+  await load(ctx.page, CLIPS)
+  const everyone = { audible: ['d8.mp4', 'd12.mp4', 'clip6.webm'], bordered: [] }
+  await frame(ctx.page, 1).click()
+  await frame(ctx.page, 1).click()
+  expect(await state(ctx.page)).toEqual(everyone)
+  await expect(ctx.page.locator('#btn-all')).toHaveClass(/active/)
+
+  // In a subset, a plain click on a member removes just that one.
+  await frame(ctx.page, 0).click()
+  await frame(ctx.page, 2).click({ modifiers: ['Control'] })
+  await frame(ctx.page, 0).click()
+  expect(await state(ctx.page)).toEqual({ audible: ['clip6.webm'], bordered: ['clip6.webm'] })
+
+  // Ctrl+clicking the last audible one out also brings everyone back.
+  await frame(ctx.page, 2).click({ modifiers: ['Control'] })
+  expect(await state(ctx.page)).toEqual(everyone)
+})
+
 test('Ctrl+click adds and removes videos from the audible set', async () => {
   await load(ctx.page, CLIPS)
   await frame(ctx.page, 0).click()
@@ -83,6 +102,11 @@ test('mute (button and M) silences everything but preserves the set', async () =
   // Soloing while muted changes the set but stays silent.
   await frame(ctx.page, 0).click()
   expect(await state(ctx.page)).toEqual({ audible: [], bordered: ['d8.mp4'] })
+  // Clicking the sole audible one restores all sound, still silently...
+  await frame(ctx.page, 0).click()
+  expect(await state(ctx.page)).toEqual({ audible: [], bordered: [] })
+  // ...and re-solo it so the unmute below has a set to restore.
+  await frame(ctx.page, 0).click()
 
   await mute.blur()
   await ctx.page.keyboard.press('m')

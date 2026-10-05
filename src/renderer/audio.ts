@@ -1,9 +1,11 @@
 import type { VideoTile } from './player'
 
 /**
- * Audio model: all tiles audible by default. Plain click solos one tile,
- * Ctrl+click toggles a tile in/out of the audible set, "All sound" restores
- * everyone. Global mute is a layer on top that preserves the audible set.
+ * Audio model: all tiles audible by default. Plain click solos one tile, or
+ * turns an already-audible tile back off when only some tiles are audible;
+ * Ctrl+click toggles a tile in/out of the audible set; "All sound" restores
+ * everyone. An empty audible set always falls back to all sound. Global mute
+ * is a layer on top that preserves the audible set.
  */
 export class AudioController {
   private readonly tiles: VideoTile[] = []
@@ -22,8 +24,13 @@ export class AudioController {
     const i = this.tiles.indexOf(tile)
     if (i >= 0) this.tiles.splice(i, 1)
     this.audible.delete(tile)
-    if (this.audible.size === 0) this.allSound()
-    else this.apply()
+    this.apply()
+  }
+
+  /** Plain click: solo, or turn off a tile that's audible in a strict subset. */
+  click(tile: VideoTile): void {
+    if (this.isAllSound || !this.audible.has(tile)) this.solo(tile)
+    else this.toggleInSet(tile)
   }
 
   solo(tile: VideoTile): void {
@@ -60,6 +67,9 @@ export class AudioController {
   }
 
   private apply(): void {
+    // Nobody audible is never a state worth keeping (mute covers silence):
+    // turning off the last audible tile brings everyone back.
+    if (this.audible.size === 0) this.audible = new Set(this.tiles)
     // All-sound is judged by the actual set, not how it was reached: a full
     // set hand-assembled via Ctrl+clicks re-enables all-mode, so later
     // additions join the audible set and no borders show.
