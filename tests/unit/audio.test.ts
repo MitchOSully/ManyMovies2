@@ -171,4 +171,38 @@ describe('AudioController', () => {
     audio.toggleMute()
     expect(audibleNames(all)).toEqual(['a', 'b', 'c'])
   })
+
+  it('while cycling, every click (Ctrl or not) solos and reports the pick', () => {
+    const picks: string[] = []
+    audio.onPick = (t) => picks.push(t.name)
+    audio.cycling = true
+    audio.solo(a)
+    audio.click(a)
+    expect(audibleNames(all)).toEqual(['a'])
+    audio.toggleInSet(c)
+    expect(audibleNames(all)).toEqual(['c'])
+    audio.click(b)
+    expect(audibleNames(all)).toEqual(['b'])
+    expect(picks).toEqual(['a', 'c', 'b'])
+  })
+
+  it('All sound ends cycling', () => {
+    let ended = 0
+    audio.onCycleEnd = () => ended++
+    audio.cycling = true
+    audio.solo(a)
+    audio.allSound()
+    expect(audio.cycling).toBe(false)
+    expect(ended).toBe(1)
+    expect(audibleNames(all)).toEqual(['a', 'b', 'c'])
+    audio.allSound()
+    expect(ended).toBe(1)
+  })
+
+  it('soloed lists the audible subset in tile order, or nothing in all sound', () => {
+    expect(audio.soloed).toEqual([])
+    audio.solo(c)
+    audio.toggleInSet(a)
+    expect(audio.soloed.map((t) => t.name)).toEqual(['a', 'c'])
+  })
 })

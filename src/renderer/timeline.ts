@@ -49,6 +49,8 @@ export class Timeline {
   private sync = new Map<VideoTile, SyncState>()
   playing = false
   rate = 1
+  /** Bumped by every seek, so observers can tell a jump from playback. */
+  seeks = 0
   private lastTime = 0
   private lastDriftCheck = 0
 
@@ -161,6 +163,7 @@ export class Timeline {
   seek(time: number): void {
     const t = Math.min(Math.max(time, 0), this.duration)
     this.lastTime = t
+    this.seeks++
     for (const tile of this.tiles) {
       this.steer(tile, 0)
       this.sync.get(tile)!.snapAt = null

@@ -6,6 +6,7 @@ import type { VideoSource, VideoTile } from '../../src/renderer/player'
 import type { Timeline } from '../../src/renderer/timeline'
 import type { AudioController } from '../../src/renderer/audio'
 import type { FloatController } from '../../src/renderer/float'
+import type { CycleController } from '../../src/renderer/cycle'
 import { READY_MS } from './tolerances'
 
 declare global {
@@ -23,6 +24,7 @@ declare global {
       toggleExtras(): void
       toggleFullScreen(): void
       floats: FloatController
+      cycle: CycleController
     }
   }
 }
@@ -122,6 +124,9 @@ export async function resetApp(ctx: AppCtx): Promise<void> {
     mm.timeline.setRate(1)
     ;(document.getElementById('rate') as HTMLSelectElement).value = '1'
     if (mm.audio.muted) mm.toggleMute()
+    mm.cycle.stop()
+    mm.cycle.setInterval(10)
+    ;(document.getElementById('cycle-interval') as HTMLSelectElement).value = '10'
     mm.audio.allSound()
     if (!document.getElementById('tiles')!.classList.contains('no-strips')) mm.toggleTitles()
     if (document.getElementById('extras')!.classList.contains('open')) mm.toggleExtras()

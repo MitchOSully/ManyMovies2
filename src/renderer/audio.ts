@@ -5,7 +5,8 @@ import type { VideoTile } from './player'
  * turns an already-audible tile back off when only some tiles are audible;
  * Ctrl+click toggles a tile in/out of the audible set; "All sound" restores
  * everyone. An empty audible set always falls back to all sound. Global mute
- * is a layer on top that preserves the audible set.
+ * is a layer on top that preserves the audible set. While cycling, every
+ * click (Ctrl or not) solos, and "All sound" ends the cycle.
  */
 export class AudioController {
   private readonly tiles: VideoTile[] = []
@@ -13,6 +14,12 @@ export class AudioController {
   /** true = "everyone audible" mode; new tiles auto-join the set */
   private allMode = true
   muted = false
+  /** Cycle mode (see cycle.ts): one audible tile at a time, so every click solos. */
+  cycling = false
+  /** A click picked this tile while cycling; its turn starts over. */
+  onPick: ((tile: VideoTile) => void) | null = null
+  /** "All sound" ended cycle mode. */
+  onCycleEnd: (() => void) | null = null
 
   addTile(tile: VideoTile): void {
     this.tiles.push(tile)
@@ -29,8 +36,14 @@ export class AudioController {
 
   /** Plain click: solo, or turn off a tile that's audible in a strict subset. */
   click(tile: VideoTile): void {
-    if (this.isAllSound || !this.audible.has(tile)) this.solo(tile)
+    if (this.cycling) this.pick(tile)
+    else if (this.isAllSound || !this.audible.has(tile)) this.solo(tile)
     else this.toggleInSet(tile)
+  }
+
+  private pick(tile: VideoTile): void {
+    this.solo(tile)
+    this.onPick?.(tile)
   }
 
   solo(tile: VideoTile): void {
@@ -40,6 +53,7 @@ export class AudioController {
   }
 
   toggleInSet(tile: VideoTile): void {
+    if (this.cycling) return this.pick(tile)
     this.allMode = false
     if (this.audible.has(tile)) this.audible.delete(tile)
     else this.audible.add(tile)
@@ -47,6 +61,10 @@ export class AudioController {
   }
 
   allSound(): void {
+    if (this.cycling) {
+      this.cycling = false
+      this.onCycleEnd?.()
+    }
     this.allMode = true
     this.audible = new Set(this.tiles)
     this.apply()
@@ -59,6 +77,11 @@ export class AudioController {
 
   isAudible(tile: VideoTile): boolean {
     return this.audible.has(tile)
+  }
+
+  /** The soloed tiles in grid order; empty when everyone is audible. */
+  get soloed(): VideoTile[] {
+    return this.isAllSound ? [] : this.tiles.filter((t) => this.audible.has(t))
   }
 
   /** True when every tile is audible — the default, borderless state. */

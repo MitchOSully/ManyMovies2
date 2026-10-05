@@ -2,6 +2,7 @@ import { VideoTile, type VideoSource } from './player'
 import { Timeline } from './timeline'
 import { AudioController } from './audio'
 import { FloatController } from './float'
+import { CycleController } from './cycle'
 import { computeLayout, TILE_GAP, STRIP_HEIGHT } from './layout'
 import { hydrateIcons, setIcon } from './icons'
 
@@ -22,6 +23,8 @@ const btnFwd = $<HTMLButtonElement>('btn-fwd')
 const rateSel = $<HTMLSelectElement>('rate')
 const btnMute = $<HTMLButtonElement>('btn-mute')
 const btnAll = $<HTMLButtonElement>('btn-all')
+const btnCycle = $<HTMLButtonElement>('btn-cycle')
+const cycleSel = $<HTMLSelectElement>('cycle-interval')
 const btnTitles = $<HTMLButtonElement>('btn-titles')
 const btnFull = $<HTMLButtonElement>('btn-full')
 const slider = $<HTMLInputElement>('slider')
@@ -35,6 +38,7 @@ const tiles: VideoTile[] = []
 const timeline = new Timeline()
 const audio = new AudioController()
 const floats = new FloatController()
+const cycle = new CycleController(audio, timeline)
 // A floated tile leaves the grid (and comes back when docked), and its video
 // reloads on every move, so it has to re-join the timeline.
 floats.onMove = (t) => {
@@ -89,6 +93,8 @@ function removeTile(tile: VideoTile): void {
   floats.release(tile)
   endExit(tile, false)
   timeline.removeTile(tile)
+  // Pass a removed tile's audio turn on before its audio goes.
+  cycle.refresh(tiles)
   audio.removeTile(tile)
   tile.dispose()
   relayout()
@@ -311,6 +317,9 @@ function toggleMute(): void {
 
 btnMute.addEventListener('click', toggleMute)
 
+btnCycle.addEventListener('click', () => (cycle.active ? cycle.stop() : cycle.start(tiles)))
+cycleSel.addEventListener('change', () => cycle.setInterval(parseFloat(cycleSel.value)))
+
 function toggleTitles(): void {
   titlesVisible = !titlesVisible
   tilesEl.classList.toggle('no-strips', !titlesVisible)
@@ -458,6 +467,7 @@ function fmt(s: number): string {
 function step(now: number): void {
   floats.check()
   timeline.tick(now)
+  cycle.tick(tiles)
   // One pass for however many tiles just finished, and the single point every
   // finished-state change funnels through — seek() from the slider, the arrow
   // keys and the ±10s buttons all land here on the next frame. Minimized, the
@@ -489,9 +499,14 @@ function step(now: number): void {
   setIcon(btnPlay, showPlaying ? 'pause' : 'play')
   btnAll.classList.toggle('active', audio.isAllSound && !audio.muted)
   btnAll.classList.toggle('active-dim', audio.isAllSound && audio.muted)
+  btnCycle.classList.toggle('active', cycle.active)
   // Collapsed, the group hides the mute and rate state, and nothing else on
   // screen shows them (titles and a soloed subset are visible on the tiles).
-  const changed = [audio.muted && 'muted', timeline.rate !== 1 && `${timeline.rate}×`].filter(Boolean)
+  const changed = [
+    audio.muted && 'muted',
+    timeline.rate !== 1 && `${timeline.rate}×`,
+    cycle.active && `cycling ${cycle.interval}s`
+  ].filter(Boolean)
   const hint = !extrasOpen && changed.length > 0
   btnMore.classList.toggle('active-dim', hint)
   const title = hint ? `More controls — ${changed.join(', ')}` : extrasOpen ? 'Fewer controls' : 'More controls'
@@ -510,4 +525,4 @@ setInterval(() => step(performance.now()), 250)
 updateEmpty()
 
 // Debug/testing hook
-;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, clearTiles, timeline, audio, tiles, toggleTitles, toggleMute, toggleExtras, toggleFullScreen, floats }
+;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, clearTiles, timeline, audio, tiles, toggleTitles, toggleMute, toggleExtras, toggleFullScreen, floats, cycle }

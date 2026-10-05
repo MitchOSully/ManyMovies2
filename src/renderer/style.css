@@ -97,6 +97,7 @@ body {
 }
 
 .strip {
+  position: relative;
   height: 26px;
   display: flex;
   align-items: center;
@@ -104,6 +105,17 @@ body {
   padding: 0 8px;
   background: #1d1d24;
   font-size: 12px;
+}
+
+/* Audio cycle mode: the current tile's turn fills a line under its title. */
+.tile.cycling .strip::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: calc(var(--cycle-progress, 0) * 100%);
+  background: var(--accent);
 }
 
 .strip-name {

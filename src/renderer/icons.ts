@@ -14,6 +14,7 @@ import volumeOff from '@tabler/icons/outline/volume-off.svg?raw'
 import maximize from '@tabler/icons/outline/maximize.svg?raw'
 import minimize from '@tabler/icons/outline/minimize.svg?raw'
 import pip from '@tabler/icons/outline/picture-in-picture.svg?raw'
+import cycle from '@tabler/icons/outline/arrow-big-right-lines.svg?raw'
 
 const SVGS = {
   plus,
@@ -28,7 +29,8 @@ const SVGS = {
   'volume-off': volumeOff,
   maximize,
   minimize,
-  pip
+  pip,
+  cycle
 }
 
 export type IconName = keyof typeof SVGS
