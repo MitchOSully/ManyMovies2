@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('api', {
   },
   setFullScreen: (on: boolean): Promise<void> => ipcRenderer.invoke('set-full-screen', on),
   toggleFullScreen: (): Promise<void> => ipcRenderer.invoke('toggle-full-screen'),
+  setFloatFullScreen: (name: string, on: boolean): Promise<void> =>
+    ipcRenderer.invoke('float-full-screen', name, on),
   onFullScreen: (cb: (on: boolean) => void): void => {
     ipcRenderer.on('full-screen', (_e, on: boolean) => cb(on))
   }

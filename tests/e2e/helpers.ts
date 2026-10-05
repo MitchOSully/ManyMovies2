@@ -5,6 +5,7 @@ import { join, resolve } from 'path'
 import type { VideoSource, VideoTile } from '../../src/renderer/player'
 import type { Timeline } from '../../src/renderer/timeline'
 import type { AudioController } from '../../src/renderer/audio'
+import type { FloatController } from '../../src/renderer/float'
 import { READY_MS } from './tolerances'
 
 declare global {
@@ -18,6 +19,7 @@ declare global {
       tiles: VideoTile[]
       toggleTitles(): void
       toggleFullScreen(): void
+      floats: FloatController
     }
   }
 }
@@ -95,6 +97,14 @@ export function useApp(opts: LaunchOpts = {}): AppCtx {
 
 /** Back to a fresh-launch state without paying for a relaunch. */
 export async function resetApp(ctx: AppCtx): Promise<void> {
+  // Float windows (about:blank children) go first, so the main window is the only one left.
+  await ctx.page.evaluate(() => {
+    for (const t of window.mm.tiles) window.mm.floats.dock(t)
+  })
+  await ctx.page.waitForFunction(() => document.querySelectorAll('.tile.floated').length === 0)
+  await expect
+    .poll(() => ctx.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length))
+    .toBe(1)
   await ctx.app.evaluate(({ BrowserWindow }) => {
     const win = BrowserWindow.getAllWindows()[0]
     if (win.isFullScreen()) win.setFullScreen(false)

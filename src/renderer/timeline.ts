@@ -86,17 +86,50 @@ export class Timeline {
     // A tile added mid-session joins at the current global time (lastTime is
     // captured each tick so the new tile can't be mistaken for the master yet).
     const joinAt = this.lastTime
-    const sync = (): void => {
-      if (joinAt >= tile.duration - EPS && joinAt > 0) {
-        tile.video.currentTime = tile.duration
-        tile.setFinished(true)
-      } else {
-        tile.video.currentTime = joinAt
-        if (this.playing) void tile.video.play().catch(() => {})
-      }
+    if (tile.duration > 0) this.join(tile, joinAt)
+    else tile.video.addEventListener('loadedmetadata', () => this.join(tile, joinAt), { once: true })
+  }
+
+  /**
+   * Re-join a tile whose media element is reloading (moved into or out of a
+   * float window — Chromium restarts the load on a document change, dropping it
+   * to 0 s and resetting its playback rate). It joins wherever the group is
+   * once the reload's metadata is in — aimed ahead by its seek latency like a
+   * drift seek, since a long tile landing behind would become the reference
+   * clock and step the whole wall back.
+   */
+  resync(tile: VideoTile): void {
+    const s = this.sync.get(tile)
+    if (!s) return
+    s.nudge = 0
+    s.snapAt = null
+    tile.video.addEventListener(
+      'loadedmetadata',
+      () => {
+        if (this.sync.get(tile) !== s) return
+        tile.video.playbackRate = this.rate
+        const at = this.lastTime
+        if (!this.playing || (at >= tile.duration - EPS && at > 0)) {
+          this.join(tile, at)
+          return
+        }
+        // Not past the end: landing there early would finish the tile early.
+        tile.video.currentTime = Math.min(at + s.seekLatency * this.rate, tile.duration - EPS)
+        void tile.video.play().catch(() => {})
+        s.snapAt = performance.now()
+      },
+      { once: true }
+    )
+  }
+
+  private join(tile: VideoTile, at: number): void {
+    if (at >= tile.duration - EPS && at > 0) {
+      tile.video.currentTime = tile.duration
+      tile.setFinished(true)
+    } else {
+      tile.video.currentTime = at
+      if (this.playing) void tile.video.play().catch(() => {})
     }
-    if (tile.duration > 0) sync()
-    else tile.video.addEventListener('loadedmetadata', sync, { once: true })
   }
 
   removeTile(tile: VideoTile): void {

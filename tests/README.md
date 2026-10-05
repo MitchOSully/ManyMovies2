@@ -46,4 +46,5 @@ After changes to ingestion or the grid animation, check these by hand in `npm ru
 
 - [ ] The native ＋ Add videos dialog opens, filters to video types and starts in the last-used folder
 - [ ] Dragging files from Explorer adds them; dragging a **folder** adds its videos
+- [ ] Floating a video on a real second monitor, then F11 there: full screen on *that* monitor, main window untouched, transport still in sync. Also with 10+ videos loaded.
 - [ ] A video finishing mid-playback shrinks away smoothly, and the survivors glide into their new cells (no jump, no flash)

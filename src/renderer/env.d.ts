@@ -10,6 +10,8 @@ declare global {
       onAutoload(cb: (paths: string[]) => void): void
       setFullScreen(on: boolean): Promise<void>
       toggleFullScreen(): Promise<void>
+      /** Full screen for the float window opened under `name`. */
+      setFloatFullScreen(name: string, on: boolean): Promise<void>
       onFullScreen(cb: (on: boolean) => void): void
     }
   }

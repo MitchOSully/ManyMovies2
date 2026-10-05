@@ -8,12 +8,17 @@ export interface VideoSource {
 export class VideoTile {
   readonly el: HTMLElement
   readonly video: HTMLVideoElement
+  /** Everything below the title strip; moved wholesale into a float window. */
+  readonly frame: HTMLElement
   readonly name: string
   finished = false
   private readonly revokeUrl: string | null
+  /** Last finite duration seen; see the `duration` getter. */
+  private knownDuration = 0
 
   onClickVideo: ((tile: VideoTile, ctrl: boolean) => void) | null = null
   onClose: ((tile: VideoTile) => void) | null = null
+  onFloat: ((tile: VideoTile) => void) | null = null
   /** Fired only when `finished` actually flips; the grid collapses around it. */
   onFinishedChange: ((tile: VideoTile) => void) | null = null
 
@@ -38,14 +43,26 @@ export class VideoTile {
       e.stopPropagation()
       this.onClose?.(this)
     })
-    strip.append(label, close)
+    const float = document.createElement('button')
+    float.className = 'strip-float'
+    float.textContent = '⧉'
+    float.title = 'Float into its own window'
+    float.addEventListener('click', (e) => {
+      e.stopPropagation()
+      this.onFloat?.(this)
+    })
+    strip.append(label, float, close)
 
     const frame = document.createElement('div')
     frame.className = 'frame'
+    this.frame = frame
     this.video = document.createElement('video')
     this.video.src = source.url
     this.video.preload = 'auto'
     this.video.disablePictureInPicture = true
+    this.video.addEventListener('durationchange', () => {
+      if (Number.isFinite(this.video.duration)) this.knownDuration = this.video.duration
+    })
     const errorOverlay = document.createElement('div')
     errorOverlay.className = 'error-overlay'
     const errorTitle = document.createElement('span')
@@ -95,12 +112,20 @@ export class VideoTile {
       e.stopPropagation()
       this.onClose?.(this)
     })
+    const frameFloat = document.createElement('button')
+    frameFloat.className = 'frame-float'
+    frameFloat.textContent = '⧉'
+    frameFloat.title = 'Float into its own window'
+    frameFloat.addEventListener('click', (e) => {
+      e.stopPropagation()
+      this.onFloat?.(this)
+    })
     // Hover-revealed filename bar, standing in for the hidden strip.
     const frameTitle = document.createElement('div')
     frameTitle.className = 'frame-title'
     frameTitle.textContent = source.name
 
-    frame.append(this.video, noAudioBadge, errorOverlay, frameTitle, frameClose)
+    frame.append(this.video, noAudioBadge, errorOverlay, frameTitle, frameFloat, frameClose)
     frame.addEventListener('click', (e) => {
       this.onClickVideo?.(this, e.ctrlKey || e.metaKey)
     })
@@ -108,10 +133,15 @@ export class VideoTile {
     this.el.append(strip, frame)
   }
 
-  /** 0 until metadata has loaded */
+  /**
+   * 0 until metadata has loaded. Moving the video into another document (a
+   * float window) makes Chromium reload it, and duration reads NaN until the
+   * reload's metadata arrives; the last known value bridges that gap so the
+   * timeline doesn't see its longest video vanish and stop early.
+   */
   get duration(): number {
     const d = this.video.duration
-    return Number.isFinite(d) ? d : 0
+    return Number.isFinite(d) ? d : this.knownDuration
   }
 
   setFinished(finished: boolean): void {

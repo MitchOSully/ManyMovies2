@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, screen } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, screen, type Rectangle } from 'electron'
 import { createReadStream, promises as fs } from 'fs'
 import { pipeline } from 'stream'
 import { createServer } from 'http'
@@ -133,6 +133,14 @@ interface WindowState {
 
 const stateFile = () => join(app.getPath('userData'), 'window-state.json')
 
+/** True when a window's top-left corner lands on a connected display. */
+function onScreen(x: number, y: number): boolean {
+  return screen.getAllDisplays().some((d) => {
+    const b = d.workArea
+    return x >= b.x - 8 && y >= b.y - 8 && x < b.x + b.width && y < b.y + b.height
+  })
+}
+
 async function loadWindowState(): Promise<WindowState> {
   const fallback: WindowState = { width: 1280, height: 800 }
   try {
@@ -140,11 +148,7 @@ async function loadWindowState(): Promise<WindowState> {
     const s = JSON.parse(raw) as WindowState
     if (typeof s.width !== 'number' || typeof s.height !== 'number') return fallback
     if (typeof s.x === 'number' && typeof s.y === 'number') {
-      const visible = screen.getAllDisplays().some((d) => {
-        const b = d.workArea
-        return s.x! >= b.x - 8 && s.y! >= b.y - 8 && s.x! < b.x + b.width && s.y! < b.y + b.height
-      })
-      if (!visible) {
+      if (!onScreen(s.x, s.y)) {
         delete s.x
         delete s.y
       }
@@ -160,6 +164,8 @@ async function loadWindowState(): Promise<WindowState> {
 interface Settings {
   /** Folder of the last file picked via the Add-videos dialog; seeds the next dialog. */
   lastFolder?: string
+  /** Normal bounds of the last float window closed; the next float opens there. */
+  floatBounds?: Rectangle
 }
 
 const settingsFile = () => join(app.getPath('userData'), 'settings.json')
@@ -170,7 +176,11 @@ async function loadSettings(): Promise<Settings> {
   try {
     const raw = (await fs.readFile(settingsFile(), 'utf8')).replace(/^\uFEFF/, '')
     const s = JSON.parse(raw) as Settings
-    return typeof s.lastFolder === 'string' ? { lastFolder: s.lastFolder } : {}
+    const out: Settings = {}
+    if (typeof s.lastFolder === 'string') out.lastFolder = s.lastFolder
+    const b = s.floatBounds
+    if (b && [b.x, b.y, b.width, b.height].every((n) => typeof n === 'number')) out.floatBounds = b
+    return out
   } catch {
     // absent on first run, or unreadable/corrupt — start fresh
     return {}
@@ -181,6 +191,53 @@ function saveSettings(): void {
   fs.writeFile(settingsFile(), JSON.stringify(settings)).catch(() => {
     // best effort
   })
+}
+
+// --- float windows ---
+// A floated video lives in a same-origin window.open child of the main window
+// (see src/renderer/float.ts). Only windows named mm-float-<n> are allowed, and
+// they are tracked by that name so the renderer can full-screen them.
+
+const FLOAT_NAME = /^mm-float-\d+$/
+/** Offset applied while a spot is already taken by another open float. */
+const FLOAT_CASCADE = 32
+
+const floats = new Map<string, BrowserWindow>()
+
+/**
+ * Where a new float opens: the last float's bounds if still on screen, else
+ * centred on a display other than the main window's, else beside the main
+ * window. Cascades off any open float sitting on exactly the same spot.
+ */
+function floatBounds(main: BrowserWindow, width: number, height: number): Rectangle {
+  let b: Rectangle
+  const saved = settings.floatBounds
+  if (saved && onScreen(saved.x, saved.y)) {
+    b = { ...saved }
+  } else {
+    const mainBounds = main.getBounds()
+    const home = screen.getDisplayMatching(mainBounds)
+    const other = screen.getAllDisplays().find((d) => d.id !== home.id)
+    const area = (other ?? home).workArea
+    width = Math.min(width, area.width)
+    height = Math.min(height, area.height)
+    if (other) {
+      b = { x: area.x + Math.round((area.width - width) / 2), y: area.y + Math.round((area.height - height) / 2), width, height }
+    } else {
+      const x = Math.min(mainBounds.x + mainBounds.width - Math.round(width / 2), area.x + area.width - width)
+      b = { x: Math.max(area.x, x), y: Math.max(area.y, mainBounds.y + FLOAT_CASCADE), width, height }
+    }
+  }
+  const taken = (): boolean =>
+    [...floats.values()].some((f) => {
+      const o = f.getNormalBounds()
+      return o.x === b.x && o.y === b.y
+    })
+  while (taken()) {
+    b.x += FLOAT_CASCADE
+    b.y += FLOAT_CASCADE
+  }
+  return b
 }
 
 async function expandPaths(paths: string[]): Promise<string[]> {
@@ -217,6 +274,8 @@ async function createWindow(): Promise<void> {
   })
 
   win.on('close', () => {
+    // Floats have no controls of their own; they go with the main window.
+    for (const f of floats.values()) f.close()
     const b = win.getNormalBounds()
     try {
       require('fs').writeFileSync(stateFile(), JSON.stringify(b))
@@ -234,6 +293,41 @@ async function createWindow(): Promise<void> {
 
   ipcMain.handle('set-full-screen', (_e, on: boolean) => win.setFullScreen(on))
   ipcMain.handle('toggle-full-screen', () => win.setFullScreen(!win.isFullScreen()))
+
+  win.webContents.setWindowOpenHandler(({ frameName, features }) => {
+    if (!FLOAT_NAME.test(frameName)) return { action: 'deny' }
+    const size = (key: string, fallback: number): number =>
+      parseInt(new RegExp(`${key}=(\\d+)`).exec(features)?.[1] ?? '', 10) || fallback
+    return {
+      action: 'allow',
+      overrideBrowserWindowOptions: {
+        ...floatBounds(win, size('width', 960), size('height', 540)),
+        minWidth: 160,
+        minHeight: 90,
+        backgroundColor: '#000000',
+        autoHideMenuBar: true
+      }
+    }
+  })
+
+  win.webContents.on('did-create-window', (child, { frameName }) => {
+    floats.set(frameName, child)
+    // Tracked as it changes rather than read on 'close', which not every way
+    // of tearing a window down emits.
+    let bounds = child.getNormalBounds()
+    const track = (): void => {
+      bounds = child.getNormalBounds()
+    }
+    child.on('move', track)
+    child.on('resize', track)
+    child.on('closed', () => {
+      floats.delete(frameName)
+      settings.floatBounds = bounds
+      saveSettings()
+    })
+  })
+
+  ipcMain.handle('float-full-screen', (_e, name: string, on: boolean) => floats.get(name)?.setFullScreen(on))
 
   ipcMain.handle('open-files', async () => {
     const result = await dialog.showOpenDialog(win, {

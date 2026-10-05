@@ -1,6 +1,7 @@
 import { VideoTile, type VideoSource } from './player'
 import { Timeline } from './timeline'
 import { AudioController } from './audio'
+import { FloatController } from './float'
 import { computeLayout, TILE_GAP, STRIP_HEIGHT } from './layout'
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T
@@ -27,6 +28,14 @@ const EXIT_MS = 180
 const tiles: VideoTile[] = []
 const timeline = new Timeline()
 const audio = new AudioController()
+const floats = new FloatController()
+// A floated tile leaves the grid (and comes back when docked), and its video
+// reloads on every move, so it has to re-join the timeline.
+floats.onMove = (t) => {
+  timeline.resync(t)
+  layoutDirty = true
+}
+floats.onKey = (e) => handleKey(e)
 /** Title strips above each video; hiding them gives the grid their height back. */
 let titlesVisible = false
 /** Stamp length the time readout's width reserve was last measured for. */
@@ -44,6 +53,7 @@ function addSources(sources: VideoSource[]): void {
     const tile = new VideoTile(s)
     tile.onClickVideo = (t, ctrl) => (ctrl ? audio.toggleInSet(t) : audio.solo(t))
     tile.onClose = removeTile
+    tile.onFloat = (t) => floats.float(t)
     // Never relayout straight from here: tick() can finish several tiles in one
     // pass, so the work is coalesced into a single pass in step().
     tile.onFinishedChange = () => {
@@ -70,6 +80,7 @@ function removeTile(tile: VideoTile): void {
   const i = tiles.indexOf(tile)
   if (i < 0) return
   tiles.splice(i, 1)
+  floats.release(tile)
   endExit(tile, false)
   timeline.removeTile(tile)
   audio.removeTile(tile)
@@ -84,9 +95,9 @@ function removeTile(tile: VideoTile): void {
 let layoutDirty = false
 /** Tiles currently shrinking away, with the rect they left from and their teardown timer. */
 const exiting = new Map<VideoTile, { rect: DOMRect; timer: number }>()
-/** True while a tile is laid out in the grid (neither collapsed nor mid-exit). */
+/** True while a tile is laid out in the grid (not collapsed, mid-exit or floated). */
 function inFlow(tile: VideoTile): boolean {
-  return !tile.el.classList.contains('collapsed') && !tile.el.classList.contains('exiting')
+  return !tile.el.classList.contains('collapsed') && !tile.el.classList.contains('exiting') && !floats.isFloated(tile)
 }
 
 /**
@@ -130,7 +141,8 @@ function relayout(animate = false): void {
   const hide = (t: VideoTile): boolean => collapse && t.finished
   // Reveals snap. They only happen while scrubbing or at the end of the
   // timeline, and animating one would fight the stream of seeks behind it.
-  if (tiles.some((t) => !inFlow(t) && !hide(t))) animate = false
+  // (A floated tile is out of the grid but not waiting to be revealed.)
+  if (tiles.some((t) => !inFlow(t) && !hide(t) && !floats.isFloated(t))) animate = false
 
   // getBoundingClientRect reports the *transformed* box, so a tile caught
   // mid-flight re-targets from where it visually is instead of snapping back.
@@ -350,8 +362,10 @@ window.addEventListener('pointerup', () => {
 })
 
 // --- keyboard shortcuts ---
+// Float windows forward their keys here too, so the transport works from
+// whichever window has focus.
 
-window.addEventListener('keydown', (e) => {
+function handleKey(e: KeyboardEvent): void {
   switch (e.key) {
     case ' ':
       togglePlay()
@@ -393,7 +407,9 @@ window.addEventListener('keydown', (e) => {
       return
   }
   e.preventDefault()
-})
+}
+
+window.addEventListener('keydown', handleKey)
 
 // --- per-frame UI sync ---
 
@@ -406,6 +422,7 @@ function fmt(s: number): string {
 }
 
 function step(now: number): void {
+  floats.check()
   timeline.tick(now)
   // One pass for however many tiles just finished, and the single point every
   // finished-state change funnels through — seek() from the slider, the arrow
@@ -450,4 +467,4 @@ setInterval(() => step(performance.now()), 250)
 updateEmpty()
 
 // Debug/testing hook
-;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, timeline, audio, tiles, toggleTitles, toggleFullScreen }
+;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, timeline, audio, tiles, toggleTitles, toggleFullScreen, floats }

@@ -66,6 +66,11 @@ body {
   display: none;
 }
 
+/* Its video is showing in a float window (see float.ts). */
+.tile.floated {
+  display: none;
+}
+
 /* Mid-exit: out of the flow the instant it finishes, so the survivors can start
    growing into its cell, but still painted on top of them while it shrinks. */
 .tile.exiting {
@@ -107,7 +112,8 @@ body {
   color: #c9c9d1;
 }
 
-.strip-close {
+.strip-close,
+.strip-float {
   background: none;
   border: none;
   color: #8a8a94;
@@ -118,7 +124,8 @@ body {
   line-height: 1;
 }
 
-.strip-close:hover {
+.strip-close:hover,
+.strip-float:hover {
   color: #fff;
   background: #33333d;
 }
@@ -157,7 +164,7 @@ body {
   right: 0;
   display: none;
   z-index: 1;
-  padding: 6px 36px 6px 8px;
+  padding: 6px 66px 6px 8px;
   background: linear-gradient(rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0));
   color: #e8e8ea;
   font-size: 12px;
@@ -171,7 +178,8 @@ body {
   display: block;
 }
 
-.frame-close {
+.frame-close,
+.frame-float {
   position: absolute;
   top: 6px;
   right: 6px;
@@ -187,11 +195,17 @@ body {
   cursor: pointer;
 }
 
-.no-strips .frame:hover .frame-close {
+.frame-float {
+  right: 36px;
+}
+
+.no-strips .frame:hover .frame-close,
+.no-strips .frame:hover .frame-float {
   display: block;
 }
 
-.frame-close:hover {
+.frame-close:hover,
+.frame-float:hover {
   background: rgba(0, 0, 0, 0.85);
   color: #fff;
 }
@@ -242,6 +256,45 @@ body {
 
 .tile.no-audio .no-audio-badge {
   display: block;
+}
+
+/* Float window: one tile's frame, filling the window. Its classes are
+   mirrored from the grid tile; the hover title and buttons never show (they
+   only appear under .no-strips, which the float body doesn't have). */
+body.float {
+  background: #000;
+}
+
+.float-host.tile {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  height: auto;
+}
+
+.float-host .frame {
+  top: 0;
+}
+
+/* Drawn over the video: an outer ring would sit outside the window. */
+.float-host::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.float-host.audible {
+  box-shadow: none;
+}
+
+.float-host.audible::after {
+  box-shadow: inset 0 0 0 3px var(--accent);
+}
+
+.float-host.audible.muted-global::after {
+  box-shadow: inset 0 0 0 3px var(--accent-dim);
 }
 
 #empty {
