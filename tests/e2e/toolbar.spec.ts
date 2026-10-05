@@ -9,6 +9,14 @@ test('Add and Clear are icon-only, with tooltips', async () => {
   await expect(ctx.page.locator('#btn-clear')).toHaveAttribute('title', 'Remove all videos')
 })
 
+test('Add is green and Clear is red', async () => {
+  await load(ctx.page, ['d8.mp4'])
+  await expect(ctx.page.locator('#btn-add')).toHaveCSS('color', 'rgb(74, 222, 128)')
+  await expect(ctx.page.locator('#btn-clear')).toHaveCSS('color', 'rgb(248, 113, 113)')
+  await expect(ctx.page.locator('#btn-add')).toHaveCSS('background-color', 'rgb(28, 58, 40)')
+  await expect(ctx.page.locator('#btn-clear')).toHaveCSS('background-color', 'rgb(62, 34, 36)')
+})
+
 test('every icon renders as an inline SVG, with no leftover text glyphs', async () => {
   await load(ctx.page, ['d8.mp4'])
   const icons = await ctx.page.evaluate(() =>

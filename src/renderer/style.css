@@ -4,6 +4,8 @@
   --text: #e8e8ea;
   --accent: #3da9fc;
   --accent-dim: rgba(61, 169, 252, 0.35);
+  --add: #4ade80;
+  --clear: #f87171;
 }
 
 * {
@@ -326,6 +328,10 @@ body.float {
   color: #74747e;
 }
 
+#empty .inline-icon {
+  color: var(--add);
+}
+
 .inline-icon svg {
   width: 1.1em;
   height: 1.1em;
@@ -412,6 +418,27 @@ body.float {
   opacity: 0.4;
   cursor: default;
   background: #26262e;
+}
+
+/* Add and Clear are coloured by role; the icons draw in currentColor. */
+#controls #btn-add {
+  color: var(--add);
+  background: #1c3a28;
+  border-color: #2a5a3c;
+}
+
+#controls #btn-add:hover {
+  background: #23482f;
+}
+
+#controls #btn-clear {
+  color: var(--clear);
+  background: #3e2224;
+  border-color: #613234;
+}
+
+#controls #btn-clear:hover:enabled {
+  background: #4c292b;
 }
 
 #controls button.active {
