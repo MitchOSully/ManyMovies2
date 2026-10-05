@@ -1,3 +1,5 @@
+import { setIcon } from './icons'
+
 export interface VideoSource {
   url: string
   name: string
@@ -37,7 +39,7 @@ export class VideoTile {
     label.title = source.name
     const close = document.createElement('button')
     close.className = 'strip-close'
-    close.textContent = '✕'
+    setIcon(close, 'x')
     close.title = 'Remove video'
     close.addEventListener('click', (e) => {
       e.stopPropagation()
@@ -45,7 +47,7 @@ export class VideoTile {
     })
     const float = document.createElement('button')
     float.className = 'strip-float'
-    float.textContent = '⧉'
+    setIcon(float, 'pip')
     float.title = 'Float into its own window'
     float.addEventListener('click', (e) => {
       e.stopPropagation()
@@ -106,7 +108,7 @@ export class VideoTile {
     // CSS reveals it on hover in that mode only.
     const frameClose = document.createElement('button')
     frameClose.className = 'frame-close'
-    frameClose.textContent = '✕'
+    setIcon(frameClose, 'x')
     frameClose.title = 'Remove video'
     frameClose.addEventListener('click', (e) => {
       e.stopPropagation()
@@ -114,7 +116,7 @@ export class VideoTile {
     })
     const frameFloat = document.createElement('button')
     frameFloat.className = 'frame-float'
-    frameFloat.textContent = '⧉'
+    setIcon(frameFloat, 'pip')
     frameFloat.title = 'Float into its own window'
     frameFloat.addEventListener('click', (e) => {
       e.stopPropagation()

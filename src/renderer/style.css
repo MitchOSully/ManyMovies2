@@ -124,6 +124,15 @@ body {
   line-height: 1;
 }
 
+.strip-close svg,
+.strip-float svg,
+.frame-close svg,
+.frame-float svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
 .strip-close:hover,
 .strip-float:hover {
   color: #fff;
@@ -317,6 +326,12 @@ body.float {
   color: #74747e;
 }
 
+.inline-icon svg {
+  width: 1.1em;
+  height: 1.1em;
+  vertical-align: -0.2em;
+}
+
 #controls {
   height: 56px;
   flex-shrink: 0;
@@ -368,30 +383,25 @@ body.float {
   color: var(--text);
   border: 1px solid #33333d;
   border-radius: 6px;
-  padding: 6px 10px;
+  height: 32px;
+  padding: 0 10px;
   cursor: pointer;
   font-size: 13px;
 }
 
-/* Both glyphs are always laid out, stacked in one grid cell, so the button
-   keeps the width of the wider one and the toolbar does not shift when play
-   flips to pause. */
-#controls #btn-play {
-  display: inline-grid;
-  justify-items: center;
+/* Icon-only buttons are square. Every icon is the same size, so swapping one
+   (play/pause, mute) never shifts the toolbar. */
+#controls button[data-icon] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  padding: 0;
 }
 
-#btn-play > span {
-  grid-area: 1 / 1;
-}
-
-#btn-play > span:nth-child(2),
-#btn-play.playing > span:nth-child(1) {
-  visibility: hidden;
-}
-
-#btn-play.playing > span:nth-child(2) {
-  visibility: visible;
+#controls button svg {
+  width: 18px;
+  height: 18px;
 }
 
 #controls button:hover {

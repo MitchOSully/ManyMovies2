@@ -97,7 +97,7 @@ test('mute (button and M) silences everything but preserves the set', async () =
   const mute = ctx.page.locator('#btn-mute')
   await frame(ctx.page, 1).click()
   await mute.click()
-  await expect(mute).toHaveText('🔇')
+  await expect(mute).toHaveAttribute('data-icon', 'volume-off')
   await expect(mute).toHaveClass(/active/)
   expect(await state(ctx.page)).toEqual({ audible: [], bordered: ['d12.mp4'] })
   expect((await tiles(ctx.page)).every((t) => has(t, 'muted-global'))).toBe(true)
@@ -112,12 +112,12 @@ test('mute (button and M) silences everything but preserves the set', async () =
 
   await mute.blur()
   await ctx.page.keyboard.press('m')
-  await expect(mute).toHaveText('🔊')
+  await expect(mute).toHaveAttribute('data-icon', 'volume')
   await expect(mute).not.toHaveClass(/active/)
   expect(await state(ctx.page)).toEqual({ audible: ['d8.mp4'], bordered: ['d8.mp4'] })
   expect((await tiles(ctx.page)).some((t) => has(t, 'muted-global'))).toBe(false)
   await ctx.page.keyboard.press('M')
-  await expect(mute).toHaveText('🔇')
+  await expect(mute).toHaveAttribute('data-icon', 'volume-off')
 })
 
 test('All sound shows dimmed while globally muted', async () => {

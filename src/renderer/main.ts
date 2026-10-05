@@ -3,8 +3,11 @@ import { Timeline } from './timeline'
 import { AudioController } from './audio'
 import { FloatController } from './float'
 import { computeLayout, TILE_GAP, STRIP_HEIGHT } from './layout'
+import { hydrateIcons, setIcon } from './icons'
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T
+
+hydrateIcons()
 
 const stage = $<HTMLDivElement>('stage')
 const tilesEl = $<HTMLDivElement>('tiles')
@@ -302,7 +305,7 @@ btnAll.addEventListener('click', () => audio.allSound())
 
 function toggleMute(): void {
   audio.toggleMute()
-  btnMute.textContent = audio.muted ? '🔇' : '🔊'
+  setIcon(btnMute, audio.muted ? 'volume-off' : 'volume')
   btnMute.classList.toggle('active', audio.muted)
 }
 
@@ -328,7 +331,7 @@ function toggleExtras(): void {
   extrasEl.classList.toggle('open', extrasOpen)
   extrasEl.inert = !extrasOpen
   btnMore.setAttribute('aria-expanded', String(extrasOpen))
-  btnMore.textContent = extrasOpen ? '‹' : '›'
+  setIcon(btnMore, extrasOpen ? 'chevron-left' : 'chevron-right')
 }
 
 btnMore.addEventListener('click', toggleExtras)
@@ -349,6 +352,7 @@ function applyFullScreen(on: boolean): void {
   if (!on) document.body.classList.remove('show-controls')
   btnFull.classList.toggle('active', on)
   btnFull.title = on ? 'Exit full screen (F11 / Esc)' : 'Full screen (F11)'
+  setIcon(btnFull, on ? 'minimize' : 'maximize')
 }
 
 function toggleFullScreen(): void {
@@ -480,7 +484,9 @@ function step(now: number): void {
   // A drag pauses the timeline underneath, but that is plumbing, not a transport
   // change: keep showing the state the release will restore so the button only
   // ever flips when play/pause is actually used.
-  btnPlay.classList.toggle('playing', scrubbing ? wasPlaying : timeline.playing)
+  const showPlaying = scrubbing ? wasPlaying : timeline.playing
+  btnPlay.classList.toggle('playing', showPlaying)
+  setIcon(btnPlay, showPlaying ? 'pause' : 'play')
   btnAll.classList.toggle('active', audio.isAllSound && !audio.muted)
   btnAll.classList.toggle('active-dim', audio.isAllSound && audio.muted)
   // Collapsed, the group hides the mute and rate state, and nothing else on
