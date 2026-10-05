@@ -370,6 +370,12 @@ body.float {
   background: #30303a;
 }
 
+#controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background: #26262e;
+}
+
 #controls button.active {
   border-color: var(--accent);
   color: var(--accent);

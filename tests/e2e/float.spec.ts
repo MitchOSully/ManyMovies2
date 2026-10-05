@@ -188,6 +188,15 @@ test('removing a floated tile closes its float', async () => {
   expect(await visibleTiles(ctx.page)).toEqual(['d8.mp4'])
 })
 
+test('Clear removes floated tiles too and closes their floats', async () => {
+  await load(ctx.page, ['d5.mp4', 'd8.mp4', 'd12.mp4'])
+  await float(ctx, 0)
+  await float(ctx, 0)
+  await ctx.page.locator('#btn-clear').click()
+  await expect.poll(() => floatWins(ctx)).toEqual([])
+  await expect(ctx.page.locator('.tile')).toHaveCount(0)
+})
+
 test('several tiles can float at once, cascading off each other', async () => {
   await load(ctx.page, ['d5.mp4', 'd8.mp4', 'd12.mp4'])
   await float(ctx, 0)

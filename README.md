@@ -2,7 +2,7 @@
 
 Desktop app that plays many videos simultaneously in a synced grid.
 
-- **Arbitrary number of videos** — add via the ＋ button or drag-and-drop (files or a folder); remove any tile with its ✕. Videos added mid-session join at the current timeline position.
+- **Arbitrary number of videos** — add via the ＋ button or drag-and-drop (files or a folder); remove any tile with its ✕, or all of them with **✕ Clear**. Videos added mid-session join at the current timeline position.
 - **Auto-optimizing grid** — recomputes the best uniform layout on every resize/add/remove; partial last row is centered.
 - **One global timeline** — a single slider scrubs every video at once. A video that reaches its end shrinks away and the grid re-flows, so the rest get bigger; scrub back before its end and it returns to the same slot. Once nothing is left running, every video reappears on its final frame.
 - **Shared transport** — play/pause, ±10s skips, 0.5×/1×/2× speed, mute: all global.

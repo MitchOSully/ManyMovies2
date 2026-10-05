@@ -56,3 +56,39 @@ test('removing every video returns to the empty state and resets the timeline', 
   await load(ctx.page, ['d3.mp4'])
   expect(await time(ctx.page)).toBe(0)
 })
+
+test('Clear is disabled with no videos and enabled once some are loaded', async () => {
+  const clear = ctx.page.locator('#btn-clear')
+  await expect(clear).toBeDisabled()
+  await load(ctx.page, ['d3.mp4'])
+  await expect(clear).toBeEnabled()
+})
+
+test('Clear removes every video mid-playback and resets the timeline', async () => {
+  await load(ctx.page, ['d5.mp4', 'd8.mp4', 'd12.mp4'])
+  await ctx.page.keyboard.press('Space')
+  await expect.poll(() => time(ctx.page)).toBeGreaterThan(0.5)
+  await ctx.page.locator('#btn-clear').click()
+  await expect(ctx.page.locator('.tile')).toHaveCount(0)
+  await expect(ctx.page.locator('#empty')).toBeVisible()
+  expect(await playing(ctx.page)).toBe(false)
+  await expect(ctx.page.locator('#time')).toHaveText('0:00 / 0:00')
+  await expect(ctx.page.locator('#btn-clear')).toBeDisabled()
+  await load(ctx.page, ['d3.mp4'])
+  expect(await time(ctx.page)).toBe(0)
+})
+
+test('Clear keeps speed, mute and titles settings', async () => {
+  await load(ctx.page, ['d5.mp4', 'd8.mp4'])
+  await ctx.page.keyboard.press('ArrowUp') // 2×
+  await ctx.page.keyboard.press('t')
+  await ctx.page.keyboard.press('m')
+  await ctx.page.locator('#btn-clear').click()
+  await expect(ctx.page.locator('.tile')).toHaveCount(0)
+  await expect(ctx.page.locator('#rate')).toHaveValue('2')
+  await expect(ctx.page.locator('#btn-titles')).toHaveClass(/active/)
+  await expect(ctx.page.locator('#btn-mute')).toHaveClass(/active/)
+  await load(ctx.page, ['d3.mp4'])
+  expect((await tiles(ctx.page))[0].rate).toBe(2)
+  expect((await tiles(ctx.page))[0].muted).toBe(true)
+})

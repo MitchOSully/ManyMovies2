@@ -10,6 +10,7 @@ const stage = $<HTMLDivElement>('stage')
 const tilesEl = $<HTMLDivElement>('tiles')
 const emptyEl = $<HTMLDivElement>('empty')
 const btnAdd = $<HTMLButtonElement>('btn-add')
+const btnClear = $<HTMLButtonElement>('btn-clear')
 const btnPlay = $<HTMLButtonElement>('btn-play')
 const btnBack = $<HTMLButtonElement>('btn-back')
 const btnFwd = $<HTMLButtonElement>('btn-fwd')
@@ -87,6 +88,11 @@ function removeTile(tile: VideoTile): void {
   tile.dispose()
   relayout()
   updateEmpty()
+}
+
+/** Remove every video, floated ones included; settings (rate, mute, titles) stay. */
+function clearTiles(): void {
+  for (const t of [...tiles]) removeTile(t)
 }
 
 // --- collapsing finished videos out of the grid ---
@@ -216,6 +222,7 @@ function relayout(animate = false): void {
 
 function updateEmpty(): void {
   emptyEl.style.display = tiles.length ? 'none' : 'flex'
+  btnClear.disabled = tiles.length === 0
 }
 
 new ResizeObserver(() => relayout()).observe(stage)
@@ -244,6 +251,8 @@ btnAdd.addEventListener('click', async () => {
   if (window.api) addPaths(await window.api.openFiles())
   else fileInput.click()
 })
+
+btnClear.addEventListener('click', clearTiles)
 
 fileInput.addEventListener('change', () => {
   addBrowserFiles([...(fileInput.files ?? [])])
@@ -467,4 +476,4 @@ setInterval(() => step(performance.now()), 250)
 updateEmpty()
 
 // Debug/testing hook
-;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, timeline, audio, tiles, toggleTitles, toggleFullScreen, floats }
+;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, clearTiles, timeline, audio, tiles, toggleTitles, toggleFullScreen, floats }

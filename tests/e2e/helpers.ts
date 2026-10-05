@@ -14,6 +14,7 @@ declare global {
     mm: {
       addSources(sources: VideoSource[]): void
       removeTile(tile: VideoTile): void
+      clearTiles(): void
       timeline: Timeline
       audio: AudioController
       tiles: VideoTile[]
