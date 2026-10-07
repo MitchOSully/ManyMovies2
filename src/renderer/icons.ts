@@ -15,6 +15,8 @@ import maximize from '@tabler/icons/outline/maximize.svg?raw'
 import minimize from '@tabler/icons/outline/minimize.svg?raw'
 import pip from '@tabler/icons/outline/picture-in-picture.svg?raw'
 import cycle from '@tabler/icons/outline/arrow-big-right-lines.svg?raw'
+import arrowsMaximize from '@tabler/icons/outline/arrows-maximize.svg?raw'
+import arrowsMinimize from '@tabler/icons/outline/arrows-minimize.svg?raw'
 
 const SVGS = {
   plus,
@@ -30,7 +32,9 @@ const SVGS = {
   maximize,
   minimize,
   pip,
-  cycle
+  cycle,
+  'arrows-maximize': arrowsMaximize,
+  'arrows-minimize': arrowsMinimize
 }
 
 export type IconName = keyof typeof SVGS

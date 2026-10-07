@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeLayout, STRIP_HEIGHT, TILE_GAP } from '../../src/renderer/layout'
+import { computeLargeLayout, computeLayout, ROW_SHARE, STRIP_HEIGHT, TILE_GAP } from '../../src/renderer/layout'
 
 const rowsFor = (n: number, cols: number): number => Math.ceil(n / cols)
 
@@ -69,5 +69,37 @@ describe('computeLayout', () => {
   it('falls back to a default tile when nothing fits', () => {
     expect(computeLayout(0, 1280, 720, 0)).toMatchObject({ tileW: 320, tileH: 180, cols: 1 })
     expect(computeLayout(3, 5, 5, 26)).toMatchObject({ tileW: 320, tileH: 206, cols: 1 })
+  })
+})
+
+describe('computeLargeLayout', () => {
+  for (const strip of [0, STRIP_HEIGHT]) {
+    it(`keeps 16:9, one row within the width and the height cap (strip ${strip})`, () => {
+      const [w, h] = [1280, 744]
+      for (let n = 1; n <= 30; n++) {
+        const l = computeLargeLayout(n, w, h, strip)
+        expect(Math.abs(l.tileW / (l.tileH - strip) - 16 / 9)).toBeLessThan(0.1)
+        expect(Math.abs(l.largeW / (l.largeH - strip) - 16 / 9)).toBeLessThan(0.02)
+        // One row: every small tile fits across the width.
+        expect(n * l.tileW + (n + 1) * TILE_GAP).toBeLessThanOrEqual(w + 0.001)
+        expect(l.tileH + TILE_GAP).toBeLessThanOrEqual(h * ROW_SHARE + 0.001)
+        // Big video, row and three gaps fit the height.
+        expect(l.largeH + l.tileH + 3 * TILE_GAP).toBeLessThanOrEqual(h + 0.001)
+        expect(l.largeW).toBeGreaterThan(l.tileW)
+      }
+    })
+  }
+
+  it('narrows the row tiles once they no longer fit at the capped height', () => {
+    const few = computeLargeLayout(2, 1280, 744, 0)
+    const many = computeLargeLayout(20, 1280, 744, 0)
+    expect(few.tileH).toBe(Math.floor(744 * ROW_SHARE - TILE_GAP))
+    expect(many.tileW).toBeLessThan(few.tileW)
+  })
+
+  it('with nothing in the row, the big video gets the whole stage', () => {
+    const l = computeLargeLayout(0, 1280, 720, 0)
+    expect(l).toMatchObject({ tileW: 0, tileH: 0 })
+    expect(l.largeW).toBe(computeLayout(1, 1280, 720, 0).tileW)
   })
 })

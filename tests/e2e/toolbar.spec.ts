@@ -26,8 +26,8 @@ test('every icon renders as an inline SVG, with no leftover text glyphs', async 
       return { icon: el.dataset.icon, svgs: el.querySelectorAll('svg').length, text: el.textContent!.trim(), w: r?.width ?? 0 }
     })
   )
-  // Toolbar (9) + empty-state hint (1) + one tile's strip and frame buttons (4).
-  expect(icons).toHaveLength(14)
+  // Toolbar (9) + empty-state hint (1) + one tile's strip and frame buttons (6).
+  expect(icons).toHaveLength(16)
   for (const i of icons) {
     expect(i.svgs, i.icon).toBe(1)
     expect(i.text, i.icon).toBe('')

@@ -1,5 +1,10 @@
 import type { VideoTile } from './player'
 
+export interface AudioSnapshot {
+  audible: Set<VideoTile>
+  allMode: boolean
+}
+
 /**
  * Audio model: all tiles audible by default. Plain click solos one tile, or
  * turns an already-audible tile back off when only some tiles are audible;
@@ -20,6 +25,11 @@ export class AudioController {
   onPick: ((tile: VideoTile) => void) | null = null
   /** "All sound" ended cycle mode. */
   onCycleEnd: (() => void) | null = null
+  /**
+   * The large video (see setLarge in main.ts). It is obviously the one being
+   * listened to when it's the only audible tile, so it skips the border then.
+   */
+  private featured: VideoTile | null = null
 
   addTile(tile: VideoTile): void {
     this.tiles.push(tile)
@@ -31,6 +41,29 @@ export class AudioController {
     const i = this.tiles.indexOf(tile)
     if (i >= 0) this.tiles.splice(i, 1)
     this.audible.delete(tile)
+    if (this.featured === tile) this.featured = null
+    this.apply()
+  }
+
+  setFeatured(tile: VideoTile | null): void {
+    this.featured = tile
+    this.apply()
+  }
+
+  /** A tile was made large: its audio takes over (a pick, while cycling). */
+  feature(tile: VideoTile): void {
+    if (this.cycling) this.pick(tile)
+    else this.solo(tile)
+  }
+
+  /** The audible set, to undo the clicks a double-click is made of. */
+  snapshot(): AudioSnapshot {
+    return { audible: new Set(this.audible), allMode: this.allMode }
+  }
+
+  restore(s: AudioSnapshot): void {
+    this.audible = new Set([...s.audible].filter((t) => this.tiles.includes(t)))
+    this.allMode = s.allMode
     this.apply()
   }
 
@@ -98,11 +131,12 @@ export class AudioController {
     // additions join the audible set and no borders show.
     const all = this.isAllSound
     if (all) this.allMode = true
+    const soleFeatured = this.audible.size === 1 && this.featured !== null && this.audible.has(this.featured)
     for (const tile of this.tiles) {
       const audible = this.audible.has(tile)
       tile.video.muted = !audible || this.muted
       tile.video.volume = 1
-      tile.el.classList.toggle('audible', audible && !all)
+      tile.el.classList.toggle('audible', audible && !all && !soleFeatured)
       tile.el.classList.toggle('muted-global', this.muted)
     }
   }

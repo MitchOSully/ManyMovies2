@@ -25,6 +25,8 @@ declare global {
       toggleFullScreen(): void
       floats: FloatController
       cycle: CycleController
+      toggleLarge(tile: VideoTile): void
+      readonly large: VideoTile | null
     }
   }
 }

@@ -18,9 +18,15 @@ export class VideoTile {
   /** Last finite duration seen; see the `duration` getter. */
   private knownDuration = 0
 
-  onClickVideo: ((tile: VideoTile, ctrl: boolean) => void) | null = null
+  /** `detail` is the click count: 1 for a lone click, 2 for the second click of a double. */
+  onClickVideo: ((tile: VideoTile, ctrl: boolean, detail: number) => void) | null = null
+  onDblClickVideo: ((tile: VideoTile) => void) | null = null
   onClose: ((tile: VideoTile) => void) | null = null
   onFloat: ((tile: VideoTile) => void) | null = null
+  /** Make this the large video, or (when it already is) go back to the grid. */
+  onLarge: ((tile: VideoTile) => void) | null = null
+  /** Both copies of the large-view button (strip and hover). */
+  private readonly largeButtons: HTMLButtonElement[] = []
   /** Fired only when `finished` actually flips; the grid collapses around it. */
   onFinishedChange: ((tile: VideoTile) => void) | null = null
 
@@ -53,7 +59,8 @@ export class VideoTile {
       e.stopPropagation()
       this.onFloat?.(this)
     })
-    strip.append(label, float, close)
+    const large = this.largeButton('strip-large')
+    strip.append(label, float, large, close)
 
     const frame = document.createElement('div')
     frame.className = 'frame'
@@ -127,10 +134,15 @@ export class VideoTile {
     frameTitle.className = 'frame-title'
     frameTitle.textContent = source.name
 
-    frame.append(this.video, noAudioBadge, errorOverlay, frameTitle, frameFloat, frameClose)
+    const frameLarge = this.largeButton('frame-large')
+
+    frame.append(this.video, noAudioBadge, errorOverlay, frameTitle, frameFloat, frameLarge, frameClose)
     frame.addEventListener('click', (e) => {
-      this.onClickVideo?.(this, e.ctrlKey || e.metaKey)
+      this.onClickVideo?.(this, e.ctrlKey || e.metaKey, e.detail)
     })
+    frame.addEventListener('dblclick', () => this.onDblClickVideo?.(this))
+    // Two quick clicks on a frame button aren't a double-click on the video.
+    for (const b of [frameClose, frameFloat]) b.addEventListener('dblclick', (e) => e.stopPropagation())
 
     this.el.append(strip, frame)
   }
@@ -144,6 +156,30 @@ export class VideoTile {
   get duration(): number {
     const d = this.video.duration
     return Number.isFinite(d) ? d : this.knownDuration
+  }
+
+  private largeButton(className: string): HTMLButtonElement {
+    const b = document.createElement('button')
+    b.className = className
+    b.addEventListener('click', (e) => {
+      e.stopPropagation()
+      this.onLarge?.(this)
+    })
+    b.addEventListener('dblclick', (e) => e.stopPropagation())
+    this.largeButtons.push(b)
+    this.setLargeButton(b, false)
+    return b
+  }
+
+  private setLargeButton(b: HTMLButtonElement, large: boolean): void {
+    setIcon(b, large ? 'arrows-minimize' : 'arrows-maximize')
+    b.title = large ? 'Back to grid' : 'Make large'
+  }
+
+  /** This tile is (or stops being) the large video above the bottom row. */
+  setLarge(large: boolean): void {
+    this.el.classList.toggle('large', large)
+    for (const b of this.largeButtons) this.setLargeButton(b, large)
   }
 
   setFinished(finished: boolean): void {

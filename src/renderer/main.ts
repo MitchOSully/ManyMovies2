@@ -1,9 +1,9 @@
 import { VideoTile, type VideoSource } from './player'
 import { Timeline } from './timeline'
-import { AudioController } from './audio'
+import { AudioController, type AudioSnapshot } from './audio'
 import { FloatController } from './float'
 import { CycleController } from './cycle'
-import { computeLayout, TILE_GAP, STRIP_HEIGHT } from './layout'
+import { computeLayout, computeLargeLayout, TILE_GAP, STRIP_HEIGHT } from './layout'
 import { hydrateIcons, setIcon } from './icons'
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T
@@ -43,6 +43,7 @@ const cycle = new CycleController(audio, timeline)
 // reloads on every move, so it has to re-join the timeline.
 floats.onMove = (t) => {
   timeline.resync(t)
+  if (t === large || !largeAllowed()) setLarge(null)
   layoutDirty = true
 }
 floats.onKey = (e) => handleKey(e)
@@ -61,9 +62,22 @@ timeEl.after(timeProbe)
 function addSources(sources: VideoSource[]): void {
   for (const s of sources) {
     const tile = new VideoTile(s)
-    tile.onClickVideo = (t, ctrl) => (ctrl ? audio.toggleInSet(t) : audio.click(t))
+    tile.onClickVideo = (t, ctrl, detail) => {
+      if (detail === 1) clickSnapshot = audio.snapshot()
+      if (ctrl) audio.toggleInSet(t)
+      else audio.click(t)
+    }
+    tile.onDblClickVideo = (t) => {
+      // The large view lives in the main window; a float ignores double-clicks.
+      if (floats.isFloated(t) || (t !== large && !largeAllowed())) return
+      // Undo the two clicks this double-click is made of. While cycling those
+      // were picks of this same tile, which the cycle has already acted on.
+      if (clickSnapshot && !audio.cycling) audio.restore(clickSnapshot)
+      toggleLarge(t)
+    }
     tile.onClose = removeTile
     tile.onFloat = (t) => floats.float(t)
+    tile.onLarge = toggleLarge
     // Never relayout straight from here: tick() can finish several tiles in one
     // pass, so the work is coalesced into a single pass in step().
     tile.onFinishedChange = () => {
@@ -90,6 +104,7 @@ function removeTile(tile: VideoTile): void {
   const i = tiles.indexOf(tile)
   if (i < 0) return
   tiles.splice(i, 1)
+  if (tile === large || !largeAllowed()) setLarge(null)
   floats.release(tile)
   endExit(tile, false)
   timeline.removeTile(tile)
@@ -99,6 +114,36 @@ function removeTile(tile: VideoTile): void {
   tile.dispose()
   relayout()
   updateEmpty()
+}
+
+// --- large view: one big video above a single row of the rest ---
+
+/** The video shown large, or null for the plain grid. */
+let large: VideoTile | null = null
+/** Audio as it was before the latest lone click; a double-click restores it. */
+let clickSnapshot: AudioSnapshot | null = null
+
+/** Needs something to put in the bottom row; finished tiles count, as they come back. */
+function largeAllowed(): boolean {
+  return tiles.filter((t) => !floats.isFloated(t)).length >= 2
+}
+
+/** Button and double-click: make this video large, or go back to the grid if it is. */
+function toggleLarge(tile: VideoTile): void {
+  if (tile === large) return setLarge(null)
+  if (!largeAllowed() || floats.isFloated(tile)) return
+  setLarge(tile)
+  audio.feature(tile)
+}
+
+function setLarge(tile: VideoTile | null): void {
+  if (tile === large) return
+  large?.setLarge(false)
+  large = tile
+  large?.setLarge(true)
+  audio.setFeatured(large)
+  tilesEl.classList.toggle('large-mode', !!large)
+  relayout(!scrubbing && !document.hidden)
 }
 
 /** Remove every video, floated ones included; settings (rate, mute, titles) stay. */
@@ -154,8 +199,10 @@ function pinExit(tile: VideoTile, rect: DOMRect, origin: DOMRect): void {
 function relayout(animate = false): void {
   if (tiles.length === 0) return
 
+  tilesEl.classList.toggle('single', !largeAllowed())
   const collapse = collapsing()
-  const hide = (t: VideoTile): boolean => collapse && t.finished
+  // The large video holds its final frame rather than leave an empty stage.
+  const hide = (t: VideoTile): boolean => collapse && t.finished && t !== large
   // Reveals snap. They only happen while scrubbing or at the end of the
   // timeline, and animating one would fight the stream of seeks behind it.
   // (A floated tile is out of the grid but not waiting to be revealed.)
@@ -193,10 +240,21 @@ function relayout(animate = false): void {
 
   const visible = tiles.filter(inFlow)
   const rect = stage.getBoundingClientRect()
-  const l = computeLayout(visible.length, rect.width, rect.height, titlesVisible ? STRIP_HEIGHT : 0)
-  tilesEl.style.setProperty('--tile-w', `${l.tileW}px`)
-  tilesEl.style.setProperty('--tile-h', `${l.tileH}px`)
-  tilesEl.style.width = `${l.cols * l.tileW + (l.cols - 1) * TILE_GAP + 1}px`
+  const strip = titlesVisible ? STRIP_HEIGHT : 0
+  if (large && visible.includes(large)) {
+    const n = visible.length - 1
+    const l = computeLargeLayout(n, rect.width, rect.height, strip)
+    tilesEl.style.setProperty('--tile-w', `${l.tileW}px`)
+    tilesEl.style.setProperty('--tile-h', `${l.tileH}px`)
+    tilesEl.style.setProperty('--large-w', `${l.largeW}px`)
+    tilesEl.style.setProperty('--large-h', `${l.largeH}px`)
+    tilesEl.style.width = `${Math.max(l.largeW, n * l.tileW + (n - 1) * TILE_GAP) + 1}px`
+  } else {
+    const l = computeLayout(visible.length, rect.width, rect.height, strip)
+    tilesEl.style.setProperty('--tile-w', `${l.tileW}px`)
+    tilesEl.style.setProperty('--tile-h', `${l.tileH}px`)
+    tilesEl.style.width = `${l.cols * l.tileW + (l.cols - 1) * TILE_GAP + 1}px`
+  }
 
   const origin = tilesEl.getBoundingClientRect()
   for (const [t, ex] of exiting) pinExit(t, ex.rect, origin)
@@ -443,6 +501,11 @@ function handleKey(e: KeyboardEvent): void {
       toggleFullScreen()
       break
     case 'Escape':
+      // Innermost first: the large view, then full screen.
+      if (large) {
+        setLarge(null)
+        break
+      }
       if (!fullscreen) return
       exitFullScreen()
       break
@@ -525,4 +588,4 @@ setInterval(() => step(performance.now()), 250)
 updateEmpty()
 
 // Debug/testing hook
-;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, clearTiles, timeline, audio, tiles, toggleTitles, toggleMute, toggleExtras, toggleFullScreen, floats, cycle }
+;(window as unknown as Record<string, unknown>).mm = { addSources, removeTile, clearTiles, timeline, audio, tiles, toggleTitles, toggleMute, toggleExtras, toggleFullScreen, floats, cycle, toggleLarge, get large() { return large } }

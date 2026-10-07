@@ -88,6 +88,16 @@ body {
     opacity 180ms ease-out;
 }
 
+/* Large view: the big video goes first whatever its grid position (order
+   leaves the DOM, and so the row order, untouched), and its margins fill the
+   rest of its line so the others always wrap into the row below. */
+.tile.large {
+  width: var(--large-w);
+  height: var(--large-h);
+  order: -1;
+  margin-inline: calc((100% - var(--large-w)) / 2 - 1px);
+}
+
 .tile.audible {
   box-shadow: 0 0 0 3px var(--accent);
 }
@@ -127,7 +137,8 @@ body {
 }
 
 .strip-close,
-.strip-float {
+.strip-float,
+.strip-large {
   background: none;
   border: none;
   color: #8a8a94;
@@ -140,15 +151,29 @@ body {
 
 .strip-close svg,
 .strip-float svg,
+.strip-large svg,
 .frame-close svg,
-.frame-float svg {
+.frame-float svg,
+.frame-large svg {
   display: block;
   width: 14px;
   height: 14px;
 }
 
+/* The name gives way first on a narrow tile, never the buttons. */
+.strip button {
+  flex-shrink: 0;
+}
+
+/* One video can't be made large over nothing. */
+#tiles.single .strip-large,
+#tiles.single .frame-large {
+  display: none !important;
+}
+
 .strip-close:hover,
-.strip-float:hover {
+.strip-float:hover,
+.strip-large:hover {
   color: #fff;
   background: #33333d;
 }
@@ -187,7 +212,7 @@ body {
   right: 0;
   display: none;
   z-index: 1;
-  padding: 6px 66px 6px 8px;
+  padding: 6px 96px 6px 8px;
   background: linear-gradient(rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0));
   color: #e8e8ea;
   font-size: 12px;
@@ -202,7 +227,8 @@ body {
 }
 
 .frame-close,
-.frame-float {
+.frame-float,
+.frame-large {
   position: absolute;
   top: 6px;
   right: 6px;
@@ -218,17 +244,23 @@ body {
   cursor: pointer;
 }
 
-.frame-float {
+.frame-large {
   right: 36px;
 }
 
+.frame-float {
+  right: 66px;
+}
+
 .no-strips .frame:hover .frame-close,
-.no-strips .frame:hover .frame-float {
+.no-strips .frame:hover .frame-float,
+.no-strips .frame:hover .frame-large {
   display: block;
 }
 
 .frame-close:hover,
-.frame-float:hover {
+.frame-float:hover,
+.frame-large:hover {
   background: rgba(0, 0, 0, 0.85);
   color: #fff;
 }

@@ -8,6 +8,7 @@ Desktop app that plays many videos simultaneously in a synced grid.
 - **Shared transport** — play/pause, ±10s skips, 0.5×/1×/2× speed, mute: all global. The toolbar keeps just add, clear, play/pause, the slider and full screen in view; the › button slides out the rest (±10s, speed, mute, All sound, audio cycle, Titles) and ‹ tucks them away again. While they're tucked away, › lights up if you've muted, changed the speed or are cycling audio.
 - **Full screen** — F11 or the full-screen button hides the window frame, the taskbar and the toolbar, leaving nothing but the grid; move the pointer to the bottom edge to slide the toolbar back, F11 or Esc to leave.
 - **Float a video** — the float (picture-in-picture) button on a tile moves that video into its own window (e.g. for a projector or second monitor) and the grid closes up around it. The float has no controls: the main toolbar and all keyboard shortcuts still drive it, and they work while the float has focus too. F11 in the float makes it full screen on whatever monitor it's on, and Esc leaves. Click it to solo its audio, or Ctrl+click it like a grid tile. Close the window to put the video back in the grid. The next float opens where the last one was closed. Floating or docking restarts that one video's stream, so it blanks for about a second before re-joining in sync.
+- **Large view** — the expand button on a tile (between float and ✕), or a double-click on the video, makes that video large and lines the rest up in a single row along the bottom, in grid order. Its audio takes over, without the highlight border while it's the only one audible; clicking other videos and All sound still change the audio as usual. A small video's expand button (or a double-click) swaps it into the large spot. The large video's shrink button, a double-click on it or Esc goes back to the grid, keeping the current audio. A large video that finishes stays large on its last frame. Floating or removing it goes back to the grid. Needs at least two videos in the main window.
 - **Click-to-solo audio** — everyone audible by default (highlighted borders). Click a video to hear only it; click an audible video again to turn it back off (turning off the last one brings everyone back); Ctrl+click to add/remove videos from the audible set; **All sound** restores everyone. Mute is a layer that preserves the set.
 - **Cycle audio** — the cycle button (in the › group) passes the sound from video to video in grid order, one at a time, every 5/10/20/30/60 s (pick it in the drop-down beside the button; default 10 s). The time counts while the videos play: pausing holds the turn, 2× halves it, and seeking doesn't use it up. Finished and unplayable videos are skipped. Click (or Ctrl+click) any video to hand it the turn; the rotation carries on from there. With titles shown, a line under the current video's title fills up as its turn runs out. **All sound** ends cycling; turning it off with the button keeps the current video soloed.
 
@@ -22,7 +23,7 @@ Desktop app that plays many videos simultaneously in a synced grid.
 | A | All sound |
 | T | Show / hide titles |
 | F11 | Toggle full screen (of the float, when a float window has focus) |
-| Esc | Leave full screen |
+| Esc | Leave the large view, then full screen |
 
 ## Development
 

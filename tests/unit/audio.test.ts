@@ -205,4 +205,45 @@ describe('AudioController', () => {
     audio.toggleInSet(a)
     expect(audio.soloed.map((t) => t.name)).toEqual(['a', 'c'])
   })
+
+  it('a featured tile skips the border only while it is the sole audible one', () => {
+    audio.setFeatured(b)
+    audio.feature(b)
+    expect(audibleNames(all)).toEqual(['b'])
+    expect(bordered(all)).toEqual([])
+    audio.toggleInSet(a)
+    expect(bordered(all)).toEqual(['a', 'b'])
+    audio.solo(c)
+    expect(bordered(all)).toEqual(['c'])
+    audio.setFeatured(null)
+    audio.solo(b)
+    expect(bordered(all)).toEqual(['b'])
+  })
+
+  it('feature picks while cycling', () => {
+    const picks: string[] = []
+    audio.onPick = (t) => picks.push(t.name)
+    audio.cycling = true
+    audio.feature(c)
+    expect(audibleNames(all)).toEqual(['c'])
+    expect(picks).toEqual(['c'])
+  })
+
+  it('restore undoes changes since a snapshot', () => {
+    audio.solo(a)
+    audio.toggleInSet(b)
+    const s = audio.snapshot()
+    audio.click(b)
+    audio.click(b)
+    expect(audibleNames(all)).toEqual(['b'])
+    audio.restore(s)
+    expect(audibleNames(all)).toEqual(['a', 'b'])
+    expect(bordered(all)).toEqual(['a', 'b'])
+    // A snapshot of all sound restores all sound, new tiles included.
+    audio.allSound()
+    const everyone = audio.snapshot()
+    audio.solo(c)
+    audio.restore(everyone)
+    expect(audio.isAllSound).toBe(true)
+  })
 })
