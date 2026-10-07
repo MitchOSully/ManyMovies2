@@ -124,6 +124,20 @@ test('removing the video that has the turn hands it straight to the next', async
   expect(await audible(ctx.page)).toEqual(['d12.mp4'])
 })
 
+test('a video picked and removed before the next frame still hands on to the one after it', async () => {
+  await load(ctx.page, CLIPS)
+  await startCycle(ctx.page)
+  // No tick between the pick and the removal: the cycle can't have re-read
+  // the picked tile's grid index yet (it used to resume from d12's).
+  expect(
+    await ctx.page.evaluate(() => {
+      window.mm.tiles[1].frame.click()
+      window.mm.removeTile(window.mm.tiles[1])
+      return window.mm.tiles.filter((t) => !t.video.muted).map((t) => t.name)
+    })
+  ).toEqual(['clip6.webm'])
+})
+
 test('the turn fills a line under the title, shown only with titles on', async () => {
   await load(ctx.page, CLIPS)
   await ctx.page.evaluate(() => window.mm.cycle.setInterval(5))

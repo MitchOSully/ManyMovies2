@@ -9,6 +9,9 @@ const frame = (page: Page, i: number) => tile(page, i).locator('.frame')
 
 /** Clicks tile i's large-view button (the hover one: titles are off by default). */
 async function largeButton(page: Page, i: number): Promise<void> {
+  // Hovering a tile mid-FLIP leaves the pointer behind as it slides away, and
+  // the hover-only button vanishes with the :hover.
+  await settled(page)
   await frame(page, i).hover()
   await tile(page, i).locator('.frame-large').click()
 }

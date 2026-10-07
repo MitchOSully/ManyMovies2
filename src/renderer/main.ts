@@ -109,7 +109,7 @@ function removeTile(tile: VideoTile): void {
   endExit(tile, false)
   timeline.removeTile(tile)
   // Pass a removed tile's audio turn on before its audio goes.
-  cycle.refresh(tiles)
+  cycle.refresh(tiles, i)
   audio.removeTile(tile)
   tile.dispose()
   relayout()

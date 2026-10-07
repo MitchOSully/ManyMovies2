@@ -19,7 +19,7 @@ export class CycleController {
   active = false
   interval = 10
   private current: VideoTile | null = null
-  /** Grid index of `current` at the last check; where to resume if it's removed. */
+  /** Grid index of `current` at the last check (stale after a pick until the next one). */
   private index = -1
   private elapsed = 0
   private lastTime = 0
@@ -75,8 +75,10 @@ export class CycleController {
    * Hands over if the turn is up or the current tile can no longer play. Also
    * called straight from removal, so a removed tile's turn passes on before
    * its audio goes (an empty audible set would fall back to all sound).
+   * `removedAt` is the grid index a tile was just removed from: a click can
+   * pick a tile and its ✕ remove it before any tick has re-read its index.
    */
-  refresh(tiles: VideoTile[]): void {
+  refresh(tiles: VideoTile[], removedAt = this.index): void {
     if (!this.active) return
     let i = this.index
     if (this.current && tiles.includes(this.current)) {
@@ -87,7 +89,7 @@ export class CycleController {
       }
     } else if (this.current) {
       // Removed: the tile after it now sits at its old index.
-      i--
+      i = removedAt - 1
       this.setCurrent(null)
     }
     this.index = i
