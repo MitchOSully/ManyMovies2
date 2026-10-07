@@ -5,6 +5,7 @@ import { createServer } from 'http'
 import type { AddressInfo } from 'net'
 import { randomBytes } from 'crypto'
 import { join, extname, dirname } from 'path'
+import icon from '../../build/icon.png?asset'
 
 const VIDEO_EXTS = new Set(['.mp4', '.m4v', '.webm', '.ogg', '.ogv', '.mov', '.mkv'])
 
@@ -267,6 +268,7 @@ async function createWindow(): Promise<void> {
     minWidth: 480,
     minHeight: 360,
     backgroundColor: '#101014',
+    icon,
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js')
