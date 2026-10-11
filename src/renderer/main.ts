@@ -27,6 +27,7 @@ const btnCycle = $<HTMLButtonElement>('btn-cycle')
 const cycleSel = $<HTMLSelectElement>('cycle-interval')
 const btnTitles = $<HTMLButtonElement>('btn-titles')
 const btnFull = $<HTMLButtonElement>('btn-full')
+const controlsEl = $<HTMLDivElement>('controls')
 const slider = $<HTMLInputElement>('slider')
 const timeEl = $<HTMLSpanElement>('time')
 const fileInput = $<HTMLInputElement>('file-input')
@@ -257,6 +258,11 @@ function relayout(animate = false): void {
   }
 
   const origin = tilesEl.getBoundingClientRect()
+  // How far the large view's row must rise to clear the full-screen toolbar
+  // (see the fullscreen rules in the CSS). #tiles itself is never translated,
+  // so its box is the un-lifted layout.
+  const lift = large ? Math.max(0, controlsEl.offsetHeight - (rect.bottom - origin.bottom)) : 0
+  tilesEl.style.setProperty('--row-lift', `${lift}px`)
   for (const [t, ex] of exiting) pinExit(t, ex.rect, origin)
   if (!animate) return
 
@@ -440,9 +446,20 @@ document.addEventListener('fullscreenchange', () => {
   if (!window.api) applyFullScreen(!!document.fullscreenElement)
 })
 
+/** Top of the large view's row as drawn (rects include the lift), or Infinity. */
+function rowTop(): number {
+  let top = Infinity
+  for (const t of tiles) if (t !== large && inFlow(t)) top = Math.min(top, t.el.getBoundingClientRect().top)
+  return top
+}
+
 window.addEventListener('mousemove', (e) => {
   if (!fullscreen || scrubbing) return
-  document.body.classList.toggle('show-controls', e.clientY >= window.innerHeight - REVEAL_ZONE)
+  let show = e.clientY >= window.innerHeight - REVEAL_ZONE
+  // In the large view the row lifts above the toolbar; once up, both stay up
+  // while the pointer is on the row, so reaching for a tile doesn't drop it.
+  if (!show && large && document.body.classList.contains('show-controls')) show = e.clientY >= rowTop()
+  document.body.classList.toggle('show-controls', show)
 })
 
 // --- slider scrubbing (pause during drag, resume on release) ---

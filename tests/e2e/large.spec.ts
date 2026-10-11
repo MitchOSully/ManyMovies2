@@ -121,6 +121,70 @@ test('Esc leaves the large view first, then full screen', async () => {
   await expect(ctx.page.locator('body')).not.toHaveClass(/fullscreen/)
 })
 
+test('in full screen the row lifts above the toolbar, and stays up while the pointer is on it', async () => {
+  const page = ctx.page
+  await load(page, CLIPS)
+  await largeButton(page, 1)
+  await page.evaluate(() => window.mm.toggleFullScreen())
+  await page.waitForFunction(() => document.body.classList.contains('fullscreen'))
+  const body = page.locator('body')
+  const h = await page.evaluate(() => window.innerHeight)
+  await expect
+    .poll(() => page.evaluate(() => document.getElementById('stage')!.getBoundingClientRect().height))
+    .toBe(h)
+
+  /** Bottom of the lowest small tile, the large tile's rect and the toolbar top, as drawn. */
+  const measure = () =>
+    page.evaluate(() => {
+      const small = window.mm.tiles.filter((t) => t !== window.mm.large).map((t) => t.el.getBoundingClientRect())
+      const big = window.mm.large!.el.getBoundingClientRect()
+      return {
+        rowTop: Math.min(...small.map((r) => r.top)),
+        rowBottom: Math.max(...small.map((r) => r.bottom)),
+        big: [big.x, big.y, big.width, big.height],
+        controlsTop: document.getElementById('controls')!.getBoundingClientRect().top
+      }
+    })
+
+  await page.mouse.move(400, 20)
+  await expect(body).not.toHaveClass(/show-controls/)
+  await settled(page)
+  const before = await measure()
+  // Without the lift, the toolbar would cover the row.
+  expect(before.rowBottom).toBeGreaterThan(h - 56)
+
+  await page.mouse.move(400, h - 20)
+  await expect(body).toHaveClass(/show-controls/)
+  await settled(page)
+  await expect.poll(async () => (await measure()).rowBottom - (await measure()).controlsTop).toBeLessThanOrEqual(1)
+  const lifted = await measure()
+  expect(lifted.big).toEqual(before.big)
+  expect(lifted.rowTop).toBeLessThan(before.rowTop)
+
+  // Up onto the lifted row (above the bottom reveal zone): everything stays put.
+  const onRow = lifted.rowTop + 5
+  expect(onRow).toBeLessThan(h - 72)
+  await page.mouse.move(400, onRow)
+  await page.waitForTimeout(300)
+  await expect(body).toHaveClass(/show-controls/)
+
+  // Above the row: toolbar and row both go back down.
+  await page.mouse.move(400, 20)
+  await expect(body).not.toHaveClass(/show-controls/)
+  await settled(page)
+  expect((await measure()).rowTop).toBeCloseTo(before.rowTop, 0)
+
+  // The plain grid never lifts, and the row band is no longer sticky.
+  await page.keyboard.press('Escape')
+  expect(await largeName(page)).toBeNull()
+  await page.mouse.move(400, h - 20)
+  await expect(body).toHaveClass(/show-controls/)
+  await settled(page)
+  expect(await page.evaluate(() => window.mm.tiles.every((t) => getComputedStyle(t.el).translate === 'none'))).toBe(true)
+  await page.mouse.move(400, h - 120)
+  await expect(body).not.toHaveClass(/show-controls/)
+})
+
 /** Floats tile `index` via its hover button; resolves to the float window's page. */
 async function floatTile(c: AppCtx, index: number): Promise<Page> {
   const opened = c.app.waitForEvent('window')

@@ -59,6 +59,8 @@ body {
   position: relative;
   /* FLIP inverts are computed from top-left corners. */
   transform-origin: 0 0;
+  /* The large view's row lift (see the full-screen rules). */
+  transition: translate 0.18s ease;
 }
 
 /* A finished video gives its space back to the grid (see relayout in main.ts).
@@ -85,7 +87,8 @@ body {
 .tile.flip {
   transition:
     transform 180ms ease-out,
-    opacity 180ms ease-out;
+    opacity 180ms ease-out,
+    translate 0.18s ease;
 }
 
 /* Large view: the big video goes first whatever its grid position (order
@@ -542,4 +545,15 @@ body.fullscreen #controls {
 
 body.fullscreen.show-controls #controls {
   transform: translateY(0);
+}
+
+/* Large view: the row of small videos rides up with the toolbar, over the
+   bottom of the large one, by just enough to clear it (--row-lift, from
+   relayout). `translate` rather than `transform`, which FLIP owns. */
+#tiles.large-mode .tile:not(.large, .exiting) {
+  z-index: 1;
+}
+
+body.fullscreen.show-controls #tiles.large-mode .tile:not(.large) {
+  translate: 0 calc(-1 * var(--row-lift, 0px));
 }
