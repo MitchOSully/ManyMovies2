@@ -3,6 +3,7 @@ import { Timeline } from './timeline'
 import { AudioController, type AudioSnapshot } from './audio'
 import { FloatController } from './float'
 import { CycleController } from './cycle'
+import { autoHideCursor } from './cursor'
 import { computeLayout, computeLargeLayout, TILE_GAP, STRIP_HEIGHT } from './layout'
 import { hydrateIcons, setIcon } from './icons'
 
@@ -418,11 +419,14 @@ btnMore.addEventListener('click', toggleExtras)
 /** Distance from the bottom edge that re-reveals the toolbar in full screen. */
 const REVEAL_ZONE = 72
 let fullscreen = false
+// The pointer stays while the toolbar is up or a scrub is in hand.
+const cursor = autoHideCursor(window, () => scrubbing || document.body.classList.contains('show-controls'))
 
 function applyFullScreen(on: boolean): void {
   fullscreen = on
   document.body.classList.toggle('fullscreen', on)
   if (!on) document.body.classList.remove('show-controls')
+  cursor.setActive(on)
   btnFull.classList.toggle('active', on)
   btnFull.title = on ? 'Exit full screen (F11 / Esc)' : 'Full screen (F11)'
   setIcon(btnFull, on ? 'minimize' : 'maximize')
@@ -441,6 +445,7 @@ function exitFullScreen(): void {
 
 btnFull.addEventListener('click', toggleFullScreen)
 window.api?.onFullScreen(applyFullScreen)
+window.api?.onFloatFullScreen((name, on) => floats.setFullScreen(name, on))
 // Browser fallback: no main process to report the state back.
 document.addEventListener('fullscreenchange', () => {
   if (!window.api) applyFullScreen(!!document.fullscreenElement)

@@ -14,5 +14,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('float-full-screen', name, on),
   onFullScreen: (cb: (on: boolean) => void): void => {
     ipcRenderer.on('full-screen', (_e, on: boolean) => cb(on))
+  },
+  onFloatFullScreen: (cb: (name: string, on: boolean) => void): void => {
+    ipcRenderer.on('float-full-screen-changed', (_e, name: string, on: boolean) => cb(name, on))
   }
 })

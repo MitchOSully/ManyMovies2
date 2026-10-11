@@ -557,3 +557,17 @@ body.fullscreen.show-controls #controls {
 body.fullscreen.show-controls #tiles.large-mode .tile:not(.large) {
   translate: 0 calc(-1 * var(--row-lift, 0px));
 }
+
+/* A resting pointer hides in full screen (cursor.ts). :hover survives
+   `cursor: none`, so the hover title under it stays; the hover buttons go,
+   as they can't be aimed at blind. */
+body.cursor-hidden,
+body.cursor-hidden * {
+  cursor: none !important;
+}
+
+body.cursor-hidden .frame-close,
+body.cursor-hidden .frame-float,
+body.cursor-hidden .frame-large {
+  display: none !important;
+}

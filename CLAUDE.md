@@ -23,6 +23,7 @@ No lint/typecheck script exists. `npx tsc --noEmit` type-checks (`tsconfig.json`
 | [src/renderer/player.ts](src/renderer/player.ts) | `VideoTile` — builds one tile's DOM (`<video>`, title strip + ✕, hover ✕/title, `[CAN'T PLAY]` overlay) |
 | [src/renderer/timeline.ts](src/renderer/timeline.ts) | `Timeline` — global clock: play/pause/seek/rate, drift correction, finished-state upkeep |
 | [src/renderer/float.ts](src/renderer/float.ts) | `FloatController` — moves a tile's `.frame` into a `window.open` child window and back, mirrors its state classes, forwards keys |
+| [src/renderer/cursor.ts](src/renderer/cursor.ts) | `autoHideCursor(win, hold)` — full-screen idle pointer hiding via `body.cursor-hidden` (main window and floats); hover title survives, hover buttons hide |
 | [src/renderer/audio.ts](src/renderer/audio.ts) | `AudioController` — audible set, solo / ctrl-click toggle / all-sound / global mute |
 | [src/renderer/icons.ts](src/renderer/icons.ts) | Tabler SVG icons imported `?raw`; `setIcon(el, name)` fills a button and sets `data-icon` (what tests assert on), `hydrateIcons()` fills static `data-icon` markup |
 | [src/renderer/layout.ts](src/renderer/layout.ts) | `computeLayout(n, w, h, stripHeight)` — picks the rows×cols maximizing 16:9 tile area |

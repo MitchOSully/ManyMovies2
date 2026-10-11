@@ -322,6 +322,12 @@ async function createWindow(): Promise<void> {
     }
     child.on('move', track)
     child.on('resize', track)
+    // The float's document belongs to the main renderer, which hides its cursor.
+    const report = (on: boolean): void => {
+      if (!win.isDestroyed()) win.webContents.send('float-full-screen-changed', frameName, on)
+    }
+    child.on('enter-full-screen', () => report(true))
+    child.on('leave-full-screen', () => report(false))
     child.on('closed', () => {
       floats.delete(frameName)
       settings.floatBounds = bounds

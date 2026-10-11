@@ -1,4 +1,5 @@
 import type { VideoTile } from './player'
+import { autoHideCursor, type CursorHider } from './cursor'
 
 /** Grid-tile classes the float window mirrors: audio state and the overlays. */
 const MIRRORED = ['audible', 'muted-global', 'no-audio', 'load-error', 'finished']
@@ -10,6 +11,7 @@ interface Float {
   win: Window
   name: string
   observer: MutationObserver
+  cursor: CursorHider
 }
 
 /**
@@ -95,7 +97,14 @@ export class FloatController {
     // Closing the window docks the tile back into the grid.
     win.addEventListener('pagehide', () => this.dock(tile))
 
-    this.floats.set(tile, { win, name, observer })
+    // In full screen the pointer hides when it rests. Electron reports the
+    // state through setFullScreen(); the browser path sees it here.
+    const cursor = autoHideCursor(win)
+    doc.addEventListener('fullscreenchange', () => {
+      if (!window.api) cursor.setActive(!!doc.fullscreenElement)
+    })
+
+    this.floats.set(tile, { win, name, observer, cursor })
     this.onMove?.(tile)
   }
 
@@ -113,8 +122,14 @@ export class FloatController {
     if (!f) return false
     this.floats.delete(tile)
     f.observer.disconnect()
+    f.cursor.setActive(false)
     if (!f.win.closed) f.win.close()
     return true
+  }
+
+  /** The float window opened under `name` entered or left full screen. */
+  setFullScreen(name: string, on: boolean): void {
+    for (const f of this.floats.values()) if (f.name === name) f.cursor.setActive(on)
   }
 
   /** Safety net for a float window that went away without a pagehide. */
